@@ -1,0 +1,31 @@
+protocols:
+  itch:
+    protocol_spec: "specs/XrossingMD.json"
+    heartbeat_interval_sec: 1
+    max_reconnect_attempts: 10
+    reconnect_delay_sec: 5
+    sessions:
+      - key: i01
+        server_ip: "10.68.0.63"
+        server_port: 12100
+        username: "user01"
+        password: "pass123456"
+      - key: i02
+        server_ip: "10.68.0.63"
+        server_port: 12100
+        username: "user02"
+        password: "pass789012"
+  glimpse:
+    protocol_spec: "specs/XrossingMD.json"
+    heartbeat_interval_sec: 15
+    sessions:
+      - key: g01
+        server_ip: "10.68.0.63"
+        server_port: 12200
+        username: "user01"
+        password: "pass123456"
+      - key: g02
+        server_ip: "10.68.0.63"
+        server_port: 12200
+        username: "user02"
+        password: "pass789012"

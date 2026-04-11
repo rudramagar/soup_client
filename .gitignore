@@ -1,0 +1,17 @@
+# Build
+build/
+soupbin_client
+
+# nlohmann (user copies their own)
+include/nlohmann/
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

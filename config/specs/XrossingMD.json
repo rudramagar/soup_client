@@ -1,0 +1,73 @@
+{
+    "S": {
+        "name": "SystemEvent",
+        "fields": [
+            {"name": "MessageType",             "type": "char",     "size": 1},
+            {"name": "TimestampNanoseconds",    "type": "uint64",   "size": 8},
+            {"name": "MarketCode",              "type": "string",   "size": 4},
+            {"name": "SystemEvent",             "type": "char",     "size": 1}
+        ]
+    },
+    "R": {
+        "name": "ReferencePrice",
+        "fields": [
+            {"name": "MessageType",             "type": "char",     "size": 1},
+            {"name": "TimestampNanoseconds",    "type": "uint64",   "size": 8},
+            {"name": "SecurityId",              "type": "string",   "size": 4},
+            {"name": "ISINCode",                "type": "string",   "size": 12},
+            {"name": "MarketCode",              "type": "string",   "size": 4},
+            {"name": "RoundLotSize",            "type": "uint32",   "size": 4},
+            {"name": "PriceDecimals",           "type": "uint8",    "size": 1},
+            {"name": "TradingState",            "type": "char",     "size": 1},
+            {"name": "ReferencePrice",          "type": "uint64",   "size": 8},
+            {"name": "UpperPriceLimit",         "type": "uint64",   "size": 8},
+            {"name": "LowerPriceLimit",         "type": "uint64",   "size": 8}
+        ]
+    },
+    "H": {
+        "name": "TradingStatus",
+        "fields": [
+            {"name": "MessageType",             "type": "char",     "size": 1},
+            {"name": "TimestampNanoseconds",    "type": "uint64",   "size": 8},
+            {"name": "SecurityId",              "type": "string",   "size": 4},
+            {"name": "MarketCode",              "type": "string",   "size": 4},
+            {"name": "TradingState",            "type": "char",     "size": 1}
+        ]
+    },
+    "J": {
+        "name": "PriceLimitUpdate",
+        "fields": [
+            {"name": "MessageType",             "type": "char",     "size": 1},
+            {"name": "TimestampNanoseconds",    "type": "uint64",   "size": 8},
+            {"name": "SecurityId",              "type": "string",   "size": 4},
+            {"name": "MarketCode",              "type": "string",   "size": 4},
+            {"name": "ReferencePrice",          "type": "uint64",   "size": 8},
+            {"name": "UpperPriceLimit",         "type": "uint64",   "size": 8},
+            {"name": "LowerPriceLimit",         "type": "uint64",   "size": 8}
+        ]
+    },
+    "P": {
+        "name": "Trade",
+        "fields": [
+            {"name": "MessageType",             "type": "char",     "size": 1},
+            {"name": "TimestampNanoseconds",    "type": "uint64",   "size": 8},
+            {"name": "SecurityId",              "type": "string",   "size": 4},
+            {"name": "MarketCode",              "type": "string",   "size": 4},
+            {"name": "TradeDate",               "type": "uint32",   "size": 4},
+            {"name": "SettleDate",              "type": "uint8",    "size": 1},
+            {"name": "TradeType",               "type": "char",     "size": 1},
+            {"name": "PriceType",               "type": "char",     "size": 1},
+            {"name": "ExecutedQuantity",        "type": "uint64",   "size": 8},
+            {"name": "ExecutionPrice",          "type": "uint64",   "size": 8},
+            {"name": "MatchNumber",             "type": "uint64",   "size": 8}
+        ]
+    },
+    "G": {
+        "name": "SequenceReset",
+        "fields": [
+            {"name": "MessageType",             "type": "char",     "size": 1},
+            {"name": "TimestampNanoseconds",    "type": "uint64",   "size": 8},
+            {"name": "SequenceNumber",          "type": "uint64",   "size": 8}
+        ]
+    }
+}

@@ -1,0 +1,130 @@
+{
+  "T": {
+    "name": "TimestampSeconds",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampSeconds",     "type": "uint32", "size": 4 }
+    ]
+  },
+
+  "S": {
+    "name": "SystemEvent",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "Group",                "type": "string", "size": 4 },
+      { "name": "SystemEvent",          "type": "char",   "size": 1 }
+    ]
+  },
+
+  "L": {
+    "name": "PriceTickSize",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "PriceTickSizeTableId", "type": "uint32", "size": 4 },
+      { "name": "PriceTickSize",        "type": "uint32", "size": 4 },
+      { "name": "PriceStart",           "type": "uint32", "size": 4 }
+    ]
+  },
+
+  "R": {
+    "name": "OrderbookDirectory",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderbookId",          "type": "string", "size": 4 },
+      { "name": "OrderbookCode",        "type": "string", "size": 12 },
+      { "name": "Group",                "type": "string", "size": 4 },
+      { "name": "RoundLotSize",         "type": "uint32", "size": 4 },
+      { "name": "PriceTickSizeTableId", "type": "uint32", "size": 4 },
+      { "name": "PriceDecimals",        "type": "uint32", "size": 4 },
+      { "name": "UpperPriceLimit",      "type": "uint32", "size": 4 },
+      { "name": "LowerPriceLimit",      "type": "uint32", "size": 4 }
+    ]
+  },
+
+  "H": {
+    "name": "TradingState",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderbookId",          "type": "string", "size": 4 },
+      { "name": "Group",                "type": "string", "size": 4 },
+      { "name": "TradingState",         "type": "char",   "size": 1 }
+    ]
+  },
+
+  "Y": {
+    "name": "ShortSellingPriceRestrictionState",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderbookId",          "type": "string", "size": 4 },
+      { "name": "Group",                "type": "string", "size": 4 },
+      { "name": "ShortSellingState",    "type": "char",   "size": 1 }
+    ]
+  },
+
+  "A": {
+    "name": "OrderAdded",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderNumber",          "type": "uint64", "size": 8 },
+      { "name": "BuySellIndicator",     "type": "char",   "size": 1 },
+      { "name": "Quantity",             "type": "uint32", "size": 4 },
+      { "name": "OrderbookId",          "type": "string", "size": 4 },
+      { "name": "Group",                "type": "string", "size": 4 },
+      { "name": "Price",                "type": "uint32", "size": 4 }
+    ]
+  },
+
+  "F": {
+    "name": "OrderAddedWithAttributes",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderNumber",          "type": "uint64", "size": 8 },
+      { "name": "BuySellIndicator",     "type": "char",   "size": 1 },
+      { "name": "Quantity",             "type": "uint32", "size": 4 },
+      { "name": "OrderbookId",          "type": "string", "size": 4 },
+      { "name": "Group",                "type": "string", "size": 4 },
+      { "name": "Price",                "type": "uint32", "size": 4 },
+      { "name": "Attribution",          "type": "string", "size": 4 },
+      { "name": "OrderType",            "type": "char",   "size": 1 }
+    ]
+  },
+
+  "E": {
+    "name": "OrderExecuted",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderNumber",          "type": "uint64", "size": 8 },
+      { "name": "ExecutedQuantity",     "type": "uint32", "size": 4 },
+      { "name": "MatchNumber",          "type": "uint64", "size": 8 }
+    ]
+  },
+
+  "D": {
+    "name": "OrderDeleted",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OrderNumber",          "type": "uint64", "size": 8 }
+    ]
+  },
+
+  "U": {
+    "name": "OrderReplaced",
+    "fields": [
+      { "name": "MessageType",          "type": "char",   "size": 1 },
+      { "name": "TimestampNanoseconds", "type": "uint32", "size": 4 },
+      { "name": "OriginalOrderNumber",  "type": "uint64", "size": 8 },
+      { "name": "NewOrderNumber",       "type": "uint64", "size": 8 },
+      { "name": "Quantity",             "type": "uint32", "size": 4 },
+      { "name": "Price",                "type": "uint32", "size": 4 }
+    ]
+  }
+}
