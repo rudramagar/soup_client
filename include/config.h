@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <vector>
 
-// ITCH message spec (loaded from JSON)
 enum FieldType {
     FIELD_CHAR,
     FIELD_UINT8,
@@ -36,7 +35,6 @@ struct MsgSpec {
     MsgSpec() : msg_type(0), total_length(0) {}
 };
 
-// Session entry (one connection target)
 struct SessionConfig {
     std::string key;
     std::string server_ip;
@@ -47,7 +45,6 @@ struct SessionConfig {
     SessionConfig() : server_port(0) {}
 };
 
-// Protocol entry (itch, glimpse, etc.)
 struct ProtocolConfig {
     std::string name;
     std::string protocol_spec;
@@ -62,17 +59,15 @@ struct ProtocolConfig {
           reconnect_delay_sec(5) {}
 };
 
-// Top-level app config
 struct AppConfig {
     ProtocolConfig protocol;
     SessionConfig session;
 
-    // Loaded message specs
-    std::unordered_map<char, MsgSpec> msg_specs;
-    const MsgSpec* spec_by_type[256];
+    std::unordered_map<char, MsgSpec> outbound_specs;
+    std::unordered_map<char, MsgSpec> inbound_specs;
+    const MsgSpec* outbound_spec_by_type[256];
+    const MsgSpec* inbound_spec_by_type[256];
 
-    // Field index cache for filters
-    // -1 = not found in spec
     int security_field_offset;
     int security_field_size;
     int order_number_field_offset;
@@ -81,8 +76,6 @@ struct AppConfig {
     AppConfig();
 };
 
-// Load config from YAML, resolve protocol + session,
-// load the JSON spec file.
 bool load_config(const char* config_path,
                  const std::string& mode,
                  const std::string& session_key);

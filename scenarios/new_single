@@ -1,0 +1,8 @@
+# New Single Order (O)
+49|U|O|TK01|TEST000001|B|100|9984|NGHT|32800|99999|0||A|0|1|1
+
+# Cancel Order (X)
+#10|U|X|TK01|0
+
+# Replace Order (U)
+# 27|U|U|TK01|TK02|100|32850|99999||0

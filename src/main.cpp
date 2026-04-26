@@ -9,7 +9,7 @@ static void usage(const char* prog) {
     std::fprintf(stderr,
         "Usage: %s --mode <protocol> -u <session_key> [options]\n\n"
         "Required:\n"
-        "  --mode <protocol>   protocols (itch, glimpse, ...)\n"
+        "  --mode <protocol>   protocols (itch, glimpse, ouch)\n"
         "  -u <session_key>    sessions\n\n"
         "Options:\n"
         "  -s <seq>            start from sequence number\n"
@@ -18,6 +18,7 @@ static void usage(const char* prog) {
         "  --type <X>          filter by message type (repeatable)\n"
         "  --security <code>   filter by SecurityId/OrderbookId (repeatable)\n"
         "  --ordernum <num>    filter by OrderNumber (repeatable)\n"
+        "  --scenario <path>   OUCH scenario file\n"
         "  -h                  show help\n",
         prog);
 }
@@ -37,6 +38,7 @@ int main(int argc, char** argv) {
         {"type",     required_argument, 0, 1002},
         {"security", required_argument, 0, 1003},
         {"ordernum", required_argument, 0, 1004},
+        {"scenario", required_argument, 0, 1005},
         {0, 0, 0, 0}
     };
 
@@ -85,6 +87,15 @@ int main(int argc, char** argv) {
             app.get_filter().add_order_number((uint64_t)v);
             break;
         }
+
+        case 1005:
+            if (!optarg || std::strlen(optarg) == 0) {
+                std::fprintf(stderr, "Invalid --scenario\n");
+                usage(argv[0]);
+                return 1;
+            }
+            app.set_scenario_file(optarg);
+            break;
 
         case 'u':
             session_arg = optarg;

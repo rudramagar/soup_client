@@ -2,7 +2,6 @@
 
 #include <cstdio>
 
-// Big-endian readers
 static uint16_t read_u16_be(const uint8_t* p) {
     return (uint16_t)((uint16_t)p[0] << 8 | (uint16_t)p[1]);
 }
@@ -21,7 +20,6 @@ static uint64_t read_u64_be(const uint8_t* p) {
            ((uint64_t)p[6] << 8)  | ((uint64_t)p[7]);
 }
 
-// Print a single field value
 static void print_field_value(FieldType type, const uint8_t* data, uint32_t size) {
     switch (type) {
         case FIELD_STRING:
@@ -60,46 +58,37 @@ static void print_field_value(FieldType type, const uint8_t* data, uint32_t size
     }
 }
 
-// Decode and print one ITCH message
-//
-// prefix is pre-formatted by the caller:
-//   ITCH:    ">> {'session', seq"
-//   Glimpse: ">> {pkt_len, 'S'"
-
-bool decode_itch_message(const uint8_t* msg, uint16_t msg_len,
-                         const AppConfig& cfg,
-                         const std::string& prefix,
-                         bool verbose) {
+static bool unpack_message(const uint8_t* msg, uint16_t msg_len,
+                           const AppConfig& cfg,
+                           const std::string& prefix,
+                           bool verbose,
+                           char close_bracket) {
 
     if (!msg || msg_len == 0) {
         return false;
     }
 
     char msg_type = (char)msg[0];
-    const MsgSpec* spec = cfg.spec_by_type[(unsigned char)msg_type];
+    const MsgSpec* spec = cfg.outbound_spec_by_type[(unsigned char)msg_type];
 
-    // Print prefix (already formatted by caller)
     std::printf("%s", prefix.c_str());
 
     if (!spec) {
-        std::printf(", 'Unknown(type=%c)'}\n", msg_type);
+        std::printf(", 'Unknown(type=%c)'%c\n", msg_type, close_bracket);
         return false;
     }
 
-    // Print each field
     for (size_t i = 0; i < spec->fields.size(); i++) {
         const FieldSpec& field = spec->fields[i];
 
-        // Bounds check
         if (field.offset + field.size > msg_len) {
-            std::printf(", 'TRUNC'}\n");
+            std::printf(", 'TRUNC'%c\n", close_bracket);
             return false;
         }
 
         const uint8_t* field_data = msg + field.offset;
         std::printf(", '");
 
-        // Verbose: print field name
         if (verbose) {
             std::printf("%s=", field.name.c_str());
         }
@@ -108,6 +97,20 @@ bool decode_itch_message(const uint8_t* msg, uint16_t msg_len,
         std::printf("'");
     }
 
-    std::printf("}\n");
+    std::printf("%c\n", close_bracket);
     return true;
+}
+
+bool decode_itch_message(const uint8_t* msg, uint16_t msg_len,
+                         const AppConfig& cfg,
+                         const std::string& prefix,
+                         bool verbose) {
+    return unpack_message(msg, msg_len, cfg, prefix, verbose, '}');
+}
+
+bool decode_ouch_message(const uint8_t* msg, uint16_t msg_len,
+                         const AppConfig& cfg,
+                         const std::string& prefix,
+                         bool verbose) {
+    return unpack_message(msg, msg_len, cfg, prefix, verbose, ')');
 }

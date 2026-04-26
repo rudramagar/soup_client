@@ -8,18 +8,17 @@
 
 using json = nlohmann::json;
 
-// AppConfig constructor
 AppConfig::AppConfig()
     : security_field_offset(-1),
       security_field_size(0),
       order_number_field_offset(-1),
       order_number_field_size(0) {
-    std::memset(spec_by_type, 0, sizeof(spec_by_type));
+    std::memset(outbound_spec_by_type, 0, sizeof(outbound_spec_by_type));
+    std::memset(inbound_spec_by_type, 0, sizeof(inbound_spec_by_type));
 }
 
 static AppConfig app_config;
 
-// Resolve config path relative to config file
 static std::string resolve_path(const char* config_path,
                                 const std::string& relative_path) {
     if (relative_path.empty()) return "";
@@ -32,7 +31,6 @@ static std::string resolve_path(const char* config_path,
     return config_file.substr(0, last_slash) + "/" + relative_path;
 }
 
-// Parse field type from JSON spec string
 static FieldType parse_field_type(const std::string& s) {
     if (s == "char")   return FIELD_CHAR;
     if (s == "uint8")  return FIELD_UINT8;
@@ -47,7 +45,39 @@ static FieldType parse_field_type(const std::string& s) {
     return FIELD_STRING;
 }
 
-// Load JSON message spec file
+static MsgSpec parse_msg_spec(char msg_type, const json& obj) {
+    MsgSpec msg;
+    msg.msg_type = msg_type;
+    msg.name = obj.value("name", "");
+
+    uint32_t offset = 0;
+    const json& fields = obj["fields"];
+    for (size_t i = 0; i < fields.size(); i++) {
+        const json& fld = fields[i];
+        FieldSpec field_spec;
+        field_spec.name = fld.value("name", "");
+        field_spec.type = parse_field_type(fld.value("type", "string"));
+        field_spec.size = (uint32_t)fld.value("size", 0);
+        field_spec.offset = offset;
+        offset += field_spec.size;
+        msg.fields.push_back(field_spec);
+    }
+    msg.total_length = offset;
+    return msg;
+}
+
+static void load_section(const json& section,
+                         std::unordered_map<char, MsgSpec>& out_specs,
+                         const MsgSpec** out_index) {
+    for (json::const_iterator it = section.begin(); it != section.end(); ++it) {
+        const std::string& msg_key = it.key();
+        if (msg_key.size() != 1) continue;
+        char type = msg_key[0];
+        out_specs[type] = parse_msg_spec(type, it.value());
+        out_index[(unsigned char)type] = &out_specs[type];
+    }
+}
+
 static bool load_spec(const std::string& spec_path, AppConfig* cfg) {
     std::ifstream file(spec_path.c_str());
     if (!file) {
@@ -58,44 +88,26 @@ static bool load_spec(const std::string& spec_path, AppConfig* cfg) {
     json root;
     file >> root;
 
-    cfg->msg_specs.clear();
-    std::memset(cfg->spec_by_type, 0, sizeof(cfg->spec_by_type));
+    cfg->outbound_specs.clear();
+    cfg->inbound_specs.clear();
+    std::memset(cfg->outbound_spec_by_type, 0, sizeof(cfg->outbound_spec_by_type));
+    std::memset(cfg->inbound_spec_by_type, 0, sizeof(cfg->inbound_spec_by_type));
 
-    for (json::iterator it = root.begin(); it != root.end(); ++it) {
-        std::string msg_key = it.key();
-        if (msg_key.size() != 1) continue;
+    bool has_directional = root.contains("outbound") || root.contains("inbound");
 
-        const json& obj = it.value();
-        MsgSpec msg;
-        msg.msg_type = msg_key[0];
-        msg.name = obj.value("name", "");
-
-        uint32_t offset = 0;
-        const json& fields = obj["fields"];
-
-        for (size_t i = 0; i < fields.size(); i++) {
-            const json& fld = fields[i];
-            FieldSpec field_spec;
-            field_spec.name = fld.value("name", "");
-            field_spec.type = parse_field_type(fld.value("type", "string"));
-            field_spec.size = (uint32_t)fld.value("size", 0);
-            field_spec.offset = offset;
-            offset += field_spec.size;
-            msg.fields.push_back(field_spec);
+    if (has_directional) {
+        if (root.contains("outbound")) {
+            load_section(root["outbound"], cfg->outbound_specs, cfg->outbound_spec_by_type);
         }
-
-        msg.total_length = offset;
-        cfg->msg_specs[msg.msg_type] = msg;
-        cfg->spec_by_type[(unsigned char)msg.msg_type] = &cfg->msg_specs[msg.msg_type];
+        if (root.contains("inbound")) {
+            load_section(root["inbound"], cfg->inbound_specs, cfg->inbound_spec_by_type);
+        }
+    } else {
+        load_section(root, cfg->outbound_specs, cfg->outbound_spec_by_type);
     }
 
     return true;
 }
-
-// Build field index cache for filters
-//
-// Scans all message specs to find SecurityId,
-// OrderbookId, and OrderNumber fields.
 
 static void build_field_index(AppConfig* cfg) {
     cfg->security_field_offset = -1;
@@ -103,9 +115,8 @@ static void build_field_index(AppConfig* cfg) {
     cfg->order_number_field_offset = -1;
     cfg->order_number_field_size = 0;
 
-    // Find security field (SecurityId or OrderbookId)
     std::unordered_map<char, MsgSpec>::iterator it;
-    for (it = cfg->msg_specs.begin(); it != cfg->msg_specs.end(); ++it) {
+    for (it = cfg->outbound_specs.begin(); it != cfg->outbound_specs.end(); ++it) {
         std::vector<FieldSpec>& fields = it->second.fields;
         for (size_t i = 0; i < fields.size(); i++) {
             FieldSpec& field = fields[i];
@@ -127,7 +138,6 @@ static void build_field_index(AppConfig* cfg) {
     }
 }
 
-// Load config from YAML
 bool load_config(const char* config_path,
                  const std::string& mode,
                  const std::string& session_key) {
@@ -164,7 +174,7 @@ bool load_config(const char* config_path,
 
         std::string item_key = yaml.get(item_prefix + ".key");
         if (item_key.empty()) {
-            break;  // no more sessions
+            break;
         }
 
         if (item_key == session_key) {
