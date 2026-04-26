@@ -1,0 +1,102 @@
+{
+  "S": {
+    "name": "SystemEvent",
+    "fields": [
+      { "name": "MessageType", "type": "char",   "size": 1 },
+      { "name": "Timestamp",   "type": "uint64", "size": 8 },
+      { "name": "SystemEvent", "type": "char",   "size": 1 }
+    ]
+  },
+
+  "A": {
+    "name": "OrderAccepted",
+    "fields": [
+      { "name": "MessageType",         "type": "char",   "size": 1  },
+      { "name": "Timestamp",           "type": "uint64", "size": 8  },
+      { "name": "OrderToken",          "type": "uint32", "size": 4  },
+      { "name": "ClientReference",     "type": "string", "size": 10 },
+      { "name": "BuySellIndicator",    "type": "char",   "size": 1  },
+      { "name": "Quantity",            "type": "uint32", "size": 4  },
+      { "name": "OrderbookId",         "type": "string", "size": 4  },
+      { "name": "Group",               "type": "string", "size": 4  },
+      { "name": "Price",               "type": "uint32", "size": 4  },
+      { "name": "TimeInForce",         "type": "uint32", "size": 4  },
+      { "name": "FirmId",              "type": "uint32", "size": 4  },
+      { "name": "Display",             "type": "char",   "size": 1  },
+      { "name": "Capacity",            "type": "char",   "size": 1  },
+      { "name": "OrderNumber",         "type": "uint64", "size": 8  },
+      { "name": "MinimumQuantity",     "type": "uint32", "size": 4  },
+      { "name": "OrderState",          "type": "char",   "size": 1  },
+      { "name": "OrderClassification", "type": "char",   "size": 1  },
+      { "name": "CashMarginType",      "type": "char",   "size": 1  }
+    ]
+  },
+
+  "U": {
+    "name": "OrderReplaced",
+    "fields": [
+      { "name": "MessageType",           "type": "char",   "size": 1 },
+      { "name": "Timestamp",             "type": "uint64", "size": 8 },
+      { "name": "ReplacementOrderToken", "type": "uint32", "size": 4 },
+      { "name": "BuySellIndicator",      "type": "char",   "size": 1 },
+      { "name": "Quantity",              "type": "uint32", "size": 4 },
+      { "name": "OrderbookId",           "type": "string", "size": 4 },
+      { "name": "Group",                 "type": "string", "size": 4 },
+      { "name": "Price",                 "type": "uint32", "size": 4 },
+      { "name": "TimeInForce",           "type": "uint32", "size": 4 },
+      { "name": "Display",               "type": "char",   "size": 1 },
+      { "name": "OrderNumber",           "type": "uint64", "size": 8 },
+      { "name": "MinimumQuantity",       "type": "uint32", "size": 4 },
+      { "name": "OrderState",            "type": "char",   "size": 1 },
+      { "name": "PreviousOrderToken",    "type": "uint32", "size": 4 }
+    ]
+  },
+
+  "C": {
+    "name": "OrderCanceled",
+    "fields": [
+      { "name": "MessageType",         "type": "char",   "size": 1 },
+      { "name": "Timestamp",           "type": "uint64", "size": 8 },
+      { "name": "OrderToken",          "type": "uint32", "size": 4 },
+      { "name": "DecrementQuantity",   "type": "uint32", "size": 4 },
+      { "name": "OrderCanceledReason", "type": "char",   "size": 1 }
+    ]
+  },
+
+  "D": {
+    "name": "OrderAIQCanceled",
+    "fields": [
+      { "name": "MessageType",                 "type": "char",   "size": 1 },
+      { "name": "Timestamp",                   "type": "uint64", "size": 8 },
+      { "name": "OrderToken",                  "type": "uint32", "size": 4 },
+      { "name": "DecrementQuantity",           "type": "uint32", "size": 4 },
+      { "name": "OrderCanceledReason",         "type": "char",   "size": 1 },
+      { "name": "QuantityPreventedFromTrading","type": "uint32", "size": 4 },
+      { "name": "ExecutionPrice",              "type": "uint32", "size": 4 },
+      { "name": "LiquidityIndicator",          "type": "char",   "size": 1 }
+    ]
+  },
+
+  "E": {
+    "name": "OrderExecuted",
+    "fields": [
+      { "name": "MessageType",        "type": "char",   "size": 1 },
+      { "name": "Timestamp",          "type": "uint64", "size": 8 },
+      { "name": "OrderToken",         "type": "uint32", "size": 4 },
+      { "name": "ExecutedQuantity",   "type": "uint32", "size": 4 },
+      { "name": "ExecutionPrice",     "type": "uint32", "size": 4 },
+      { "name": "LiquidityIndicator", "type": "char",   "size": 1 },
+      { "name": "MatchNumber",        "type": "uint64", "size": 8 }
+    ]
+  },
+
+  "J": {
+    "name": "OrderRejected",
+    "fields": [
+      { "name": "MessageType",         "type": "char",   "size": 1 },
+      { "name": "Timestamp",           "type": "uint64", "size": 8 },
+      { "name": "OrderToken",          "type": "uint32", "size": 4 },
+      { "name": "OrderRejectedReason", "type": "char",   "size": 1 }
+    ]
+  }
+}
