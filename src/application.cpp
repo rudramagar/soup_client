@@ -657,7 +657,7 @@ int Application::run_ouch() {
 
         const uint8_t* ouch_payload = &bytes[3];
         uint16_t ouch_len = (uint16_t)(bytes.size() - 3);
-        decode_ouch_message(ouch_payload, ouch_len, cfg, std::string(prefix), verbose);
+        decode_ouch_message(ouch_payload, ouch_len, cfg, std::string(prefix), verbose, true);
     }
 
     int heartbeat_interval_ms = proto.heartbeat_interval_sec * 1000;

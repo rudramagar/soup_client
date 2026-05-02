@@ -29,6 +29,7 @@ bool decode_ouch_message(const uint8_t* msg,
                          uint16_t msg_len,
                          const AppConfig& cfg,
                          const std::string& prefix,
-                         bool verbose);
+                         bool verbose,
+                         bool inbound = false);
 
 #endif

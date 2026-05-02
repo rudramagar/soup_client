@@ -62,14 +62,17 @@ static bool unpack_message(const uint8_t* msg, uint16_t msg_len,
                            const AppConfig& cfg,
                            const std::string& prefix,
                            bool verbose,
-                           char close_bracket) {
+                           char close_bracket,
+                           bool inbound) {
 
     if (!msg || msg_len == 0) {
         return false;
     }
 
     char msg_type = (char)msg[0];
-    const MsgSpec* spec = cfg.outbound_spec_by_type[(unsigned char)msg_type];
+    const MsgSpec* spec = inbound
+        ? cfg.inbound_spec_by_type[(unsigned char)msg_type]
+        : cfg.outbound_spec_by_type[(unsigned char)msg_type];
 
     std::printf("%s", prefix.c_str());
 
@@ -105,12 +108,13 @@ bool decode_itch_message(const uint8_t* msg, uint16_t msg_len,
                          const AppConfig& cfg,
                          const std::string& prefix,
                          bool verbose) {
-    return unpack_message(msg, msg_len, cfg, prefix, verbose, '}');
+    return unpack_message(msg, msg_len, cfg, prefix, verbose, '}', false);
 }
 
 bool decode_ouch_message(const uint8_t* msg, uint16_t msg_len,
                          const AppConfig& cfg,
                          const std::string& prefix,
-                         bool verbose) {
-    return unpack_message(msg, msg_len, cfg, prefix, verbose, ')');
+                         bool verbose,
+                         bool inbound) {
+    return unpack_message(msg, msg_len, cfg, prefix, verbose, ')', inbound);
 }
