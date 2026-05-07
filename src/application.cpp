@@ -136,7 +136,7 @@ static bool connect_and_login(TcpSocket& sock,
                               const SessionConfig& session,
                               uint64_t requested_sequence,
                               std::string& session_id,
-                              uint64_t& sequence_number) {
+                              uint64_t& sequence_number, bool is_ouch = false) {
 
     if (!sock.connect_to(session.server_ip, session.server_port)) {
         return false;
@@ -145,8 +145,18 @@ static bool connect_and_login(TcpSocket& sock,
     sock.set_receive_buffer(SOCKET_RECV_BUF_SIZE);
     sock.set_nodelay(true);
 
+    // Change arrow for ouch mode only
+    const char* client_to_server = is_ouch ? ">>" : "<<";
+    const char* server_to_client = is_ouch ? "<<" : ">>";
+
     std::printf("Connected to %s:%u\n",
                 session.server_ip.c_str(), (unsigned)session.server_port);
+
+    std::printf("%s (%u, 'L', '%s', %llu)\n",
+                client_to_server,
+                (unsigned)(1 + LOGIN_REQUEST_PAYLOAD_LEN),
+                session.username.c_str(),
+                (unsigned long long)requested_sequence);
 
     // send login request
     if (!send_login(sock, session.username, session.password, requested_sequence)) {
@@ -197,7 +207,8 @@ static bool connect_and_login(TcpSocket& sock,
         sequence_number = server_next_sequence - 1;
 
         // print login accepted packet: >> {pkt_len, 'A', session, next_seq}
-        std::printf(">> {%u, 'A', '%.*s', %llu}\n",
+        std::printf("%s (%u, 'A', '%.*s', %llu)\n",
+                    server_to_client,
                     (unsigned)packet_length,
                     10, accepted->session,
                     (unsigned long long)server_next_sequence);
@@ -227,7 +238,8 @@ static bool connect_and_login(TcpSocket& sock,
         if ((char)reject_reason == 'S') reject_description = "Session Not Available";
 
         // print login rejected packet: >> {pkt_len, 'J', reason, description}
-        std::printf(">> {%u, 'J', '%c', '%s'}\n",
+        std::printf("%s (%u, 'J', '%c', '%s')\n",
+                    server_to_client,
                     (unsigned)packet_length,
                     (char)reject_reason,
                     reject_description);
@@ -639,7 +651,7 @@ int Application::run_ouch() {
     uint64_t login_seq = 0;
     if (has_start_seq) login_seq = start_seq;
 
-    if (!connect_and_login(sock, sess, login_seq, session_id, current_seq)) {
+    if (!connect_and_login(sock, sess, login_seq, session_id, current_seq, /*is_ouch=*/true)) {
         return 1;
     }
 
@@ -653,7 +665,7 @@ int Application::run_ouch() {
 
         uint16_t pkt_len = (uint16_t)((bytes[0] << 8) | bytes[1]);
         char prefix[64];
-        std::snprintf(prefix, sizeof(prefix), "<< (%u, 'U'", (unsigned)pkt_len);
+        std::snprintf(prefix, sizeof(prefix), ">> (%u, 'U'", (unsigned)pkt_len);
 
         const uint8_t* ouch_payload = &bytes[3];
         uint16_t ouch_len = (uint16_t)(bytes.size() - 3);
@@ -718,7 +730,7 @@ int Application::run_ouch() {
             last_data_time = now;
 
             char prefix[64];
-            std::snprintf(prefix, sizeof(prefix), ">> (%u, 'S'",
+            std::snprintf(prefix, sizeof(prefix), "<< (%u, 'S'",
                           (unsigned)packet_length);
             decode_ouch_message(recv_buf, (uint16_t)payload_length, cfg,
                                 std::string(prefix), verbose);
@@ -730,7 +742,7 @@ int Application::run_ouch() {
                 drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
             }
             if (verbose) {
-                std::printf(">> (%u, 'H')\n", (unsigned)packet_length);
+                std::printf("<< (%u, 'H')\n", (unsigned)packet_length);
             }
             continue;
         }
@@ -739,7 +751,7 @@ int Application::run_ouch() {
             if (payload_length > 0) {
                 drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
             }
-            std::printf(">> (%u, 'Z')\n", (unsigned)packet_length);
+            std::printf("<< (%u, 'Z')\n", (unsigned)packet_length);
             sock.close();
             return 0;
         }
@@ -748,7 +760,7 @@ int Application::run_ouch() {
             if (payload_length > 0 && payload_length <= RECV_BUF_CAPACITY) {
                 if (!sock.recv_exact(recv_buf, payload_length)) break;
                 if (verbose) {
-                    std::printf(">> (%u, '+', '%.*s')\n",
+                    std::printf("<< (%u, '+', '%.*s')\n",
                                 (unsigned)packet_length,
                                 payload_length, (const char*)recv_buf);
                 }
