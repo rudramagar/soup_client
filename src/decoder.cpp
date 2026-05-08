@@ -60,7 +60,7 @@ static bool unpack_message(const uint8_t* msg, uint16_t msg_len,
     std::printf("%s", prefix.c_str());
 
     if (!spec) {
-        std::printf(", 'Unknown(type=%c)'%c\n", msg_type, close_bracket);
+        std::printf(",'Unknown(type=%c)'%c\n", msg_type, close_bracket);
         return false;
     }
 
@@ -68,12 +68,12 @@ static bool unpack_message(const uint8_t* msg, uint16_t msg_len,
         const FieldSpec& field = spec->fields[i];
 
         if (field.offset + field.size > msg_len) {
-            std::printf(", 'TRUNC'%c\n", close_bracket);
+            std::printf(",'TRUNC'%c\n", close_bracket);
             return false;
         }
 
         const uint8_t* field_data = msg + field.offset;
-        std::printf(", '");
+        std::printf(",'");
 
         if (verbose) {
             std::printf("%s=", field.name.c_str());

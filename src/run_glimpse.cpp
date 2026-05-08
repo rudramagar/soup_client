@@ -101,7 +101,7 @@ int Application::run_glimpse() {
                     realtime_next_sequence = read_u64_be(recv_buf + sequence_offset);
                 }
 
-                std::printf(">> {%u, 'S', 'G', %llu}\n",
+                std::printf(">> {%u,'S','G', %llu}\n",
                             (unsigned)packet_length,
                             (unsigned long long)realtime_next_sequence);
                 sock.close();
@@ -117,7 +117,7 @@ int Application::run_glimpse() {
 
             // build output prefix: >> {pkt_len, 'S'
             char prefix[64];
-            std::snprintf(prefix, sizeof(prefix), ">> {%u, 'S'", (unsigned)packet_length);
+            std::snprintf(prefix, sizeof(prefix), ">> {%u,'S'", (unsigned)packet_length);
 
             decode_itch_message(recv_buf, (uint16_t)payload_length, cfg,
                                std::string(prefix), verbose);
@@ -137,7 +137,7 @@ int Application::run_glimpse() {
             }
 
             if (verbose) {
-                std::printf(">> {%u, 'H'}\n", (unsigned)packet_length);
+                std::printf(">> {%u,'H'}\n", (unsigned)packet_length);
             }
 
             if ((now - last_send_time) >= (heartbeat_interval_ms / 1000)) {

@@ -148,7 +148,7 @@ bool connect_and_login(TcpSocket& sock,
                 session.server_ip.c_str(), (unsigned)session.server_port);
 
     // Print Login Request before sending
-    std::printf("%s (%u, 'L', '%s', %llu)\n",
+    std::printf("%s (%u,'L','%s',%llu)\n",
                 client_to_server,
                 (unsigned)(1 + LOGIN_REQUEST_PAYLOAD_LEN),
                 session.username.c_str(),
@@ -199,7 +199,7 @@ bool connect_and_login(TcpSocket& sock,
             read_padded_number(accepted->sequence_number, 20);
         sequence_number = server_next_sequence - 1;
 
-        std::printf("%s (%u, 'A', '%.*s', %llu)\n",
+        std::printf("%s (%u,'A','%.*s',%llu)\n",
                     server_to_client,
                     (unsigned)packet_length,
                     10, accepted->session,
@@ -225,7 +225,7 @@ bool connect_and_login(TcpSocket& sock,
         if ((char)reject_reason == 'A') reject_description = "Not Authorized";
         if ((char)reject_reason == 'S') reject_description = "Session Not Available";
 
-        std::printf("%s (%u, 'J', '%c', '%s')\n",
+        std::printf("%s (%u,'J','%c','%s')\n",
                     server_to_client,
                     (unsigned)packet_length,
                     (char)reject_reason,

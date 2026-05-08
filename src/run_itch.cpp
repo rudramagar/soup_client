@@ -126,7 +126,7 @@ int Application::run_itch() {
                 // build output prefix: >> {'session', seq
                 char prefix[128];
                 std::snprintf(prefix, sizeof(prefix),
-                              ">> {'%.*s', %llu",
+                              ">> {'%.*s',%llu",
                               (int)session_id.size(), session_id.c_str(),
                               (unsigned long long)current_seq);
 
@@ -151,7 +151,7 @@ int Application::run_itch() {
                 }
 
                 if (verbose) {
-                    std::printf(">> {%u, '0'}\n", (unsigned)packet_length);
+                    std::printf(">> {%u,'0'}\n", (unsigned)packet_length);
                 }
 
                 if ((now - last_send_time) >= (heartbeat_interval_ms / 1000)) {
@@ -167,7 +167,7 @@ int Application::run_itch() {
                     drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
                 }
 
-                std::printf(">> {'%.*s', %llu, 'Z'}\n",
+                std::printf(">> {'%.*s',%llu,'Z'}\n",
                             (int)session_id.size(), session_id.c_str(),
                             (unsigned long long)current_seq);
                 sock.close();
@@ -181,7 +181,7 @@ int Application::run_itch() {
                         needs_reconnect = true; break;
                     }
                     if (verbose) {
-                        std::printf(">> {%u, '+', '%.*s'}\n",
+                        std::printf(">> {%u,'+','%.*s'}\n",
                                     (unsigned)packet_length,
                                     payload_length, (const char*)recv_buf);
                     }
@@ -218,5 +218,5 @@ int Application::run_itch() {
 
         ::sleep((unsigned)reconnect_delay_sec);
 
-    } // reconnect loop
+    }
 }

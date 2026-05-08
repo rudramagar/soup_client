@@ -60,7 +60,7 @@ int Application::run_ouch() {
 
         uint16_t pkt_len = (uint16_t)((bytes[0] << 8) | bytes[1]);
         char prefix[64];
-        std::snprintf(prefix, sizeof(prefix), ">> (%u, 'U'", (unsigned)pkt_len);
+        std::snprintf(prefix, sizeof(prefix), ">> (%u,'U'", (unsigned)pkt_len);
 
         const uint8_t* ouch_payload = &bytes[3];
         uint16_t ouch_len = (uint16_t)(bytes.size() - 3);
@@ -125,7 +125,7 @@ int Application::run_ouch() {
             last_data_time = now;
 
             char prefix[64];
-            std::snprintf(prefix, sizeof(prefix), "<< (%u, 'S'",
+            std::snprintf(prefix, sizeof(prefix), "<< (%u,'S'",
                           (unsigned)packet_length);
             decode_ouch_message(recv_buf, (uint16_t)payload_length, cfg,
                                 std::string(prefix), verbose);
@@ -137,7 +137,7 @@ int Application::run_ouch() {
                 drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
             }
             if (verbose) {
-                std::printf("<< (%u, 'H')\n", (unsigned)packet_length);
+                std::printf("<< (%u,'H')\n", (unsigned)packet_length);
             }
             continue;
         }
@@ -146,7 +146,7 @@ int Application::run_ouch() {
             if (payload_length > 0) {
                 drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
             }
-            std::printf("<< (%u, 'Z')\n", (unsigned)packet_length);
+            std::printf("<< (%u,'Z')\n", (unsigned)packet_length);
             sock.close();
             return 0;
         }
@@ -155,7 +155,7 @@ int Application::run_ouch() {
             if (payload_length > 0 && payload_length <= RECV_BUF_CAPACITY) {
                 if (!sock.recv_exact(recv_buf, payload_length)) break;
                 if (verbose) {
-                    std::printf("<< (%u, '+', '%.*s')\n",
+                    std::printf("<< (%u,'+','%.*s')\n",
                                 (unsigned)packet_length,
                                 payload_length, (const char*)recv_buf);
                 }
