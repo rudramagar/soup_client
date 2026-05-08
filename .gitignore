@@ -2,9 +2,6 @@
 build/
 soupbin_client
 
-# nlohmann (user copies their own)
-include/nlohmann/
-
 # macOS
 .DS_Store
 ._*
