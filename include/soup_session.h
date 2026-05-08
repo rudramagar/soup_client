@@ -16,8 +16,11 @@ constexpr int SOCKET_RECV_BUF_SIZE = 4 * 1024 * 1024;
 // Big-endian
 // integer readers or writers.
 uint16_t read_u16_be(const uint8_t* src);
+uint32_t read_u32_be(const uint8_t* src);
 uint64_t read_u64_be(const uint8_t* src);
 void write_u16_be(uint8_t* dst, uint16_t value);
+void write_u32_be(uint8_t* dst, uint32_t value);
+void write_u64_be(uint8_t* dst, uint64_t value);
 
 // SoupBinTCP framed msg
 // connect and login

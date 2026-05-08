@@ -1,24 +1,7 @@
 #include "decoder.h"
+#include "soup_session.h"
 
 #include <cstdio>
-
-static uint16_t read_u16_be(const uint8_t* p) {
-    return (uint16_t)((uint16_t)p[0] << 8 | (uint16_t)p[1]);
-}
-
-static uint32_t read_u32_be(const uint8_t* p) {
-    return ((uint32_t)p[0] << 24) |
-           ((uint32_t)p[1] << 16) |
-           ((uint32_t)p[2] << 8)  |
-           ((uint32_t)p[3]);
-}
-
-static uint64_t read_u64_be(const uint8_t* p) {
-    return ((uint64_t)p[0] << 56) | ((uint64_t)p[1] << 48) |
-           ((uint64_t)p[2] << 40) | ((uint64_t)p[3] << 32) |
-           ((uint64_t)p[4] << 24) | ((uint64_t)p[5] << 16) |
-           ((uint64_t)p[6] << 8)  | ((uint64_t)p[7]);
-}
 
 static void print_field_value(FieldType type, const uint8_t* data, uint32_t size) {
     switch (type) {

@@ -8,6 +8,13 @@ uint16_t read_u16_be(const uint8_t* src) {
     return (uint16_t)((uint16_t)src[0] << 8 | (uint16_t)src[1]);
 }
 
+uint32_t read_u32_be(const uint8_t* src) {
+    return ((uint32_t)src[0] << 24) |
+           ((uint32_t)src[1] << 16) |
+           ((uint32_t)src[2] << 8)  |
+           ((uint32_t)src[3]);
+}
+
 uint64_t read_u64_be(const uint8_t* src) {
     return ((uint64_t)src[0] << 56) | ((uint64_t)src[1] << 48) |
            ((uint64_t)src[2] << 40) | ((uint64_t)src[3] << 32) |
@@ -18,6 +25,24 @@ uint64_t read_u64_be(const uint8_t* src) {
 void write_u16_be(uint8_t* dst, uint16_t value) {
     dst[0] = (uint8_t)(value >> 8);
     dst[1] = (uint8_t)(value & 0xFF);
+}
+
+void write_u32_be(uint8_t* dst, uint32_t value) {
+    dst[0] = (uint8_t)(value >> 24);
+    dst[1] = (uint8_t)(value >> 16);
+    dst[2] = (uint8_t)(value >> 8);
+    dst[3] = (uint8_t)(value & 0xFF);
+}
+
+void write_u64_be(uint8_t* dst, uint64_t value) {
+    dst[0] = (uint8_t)(value >> 56);
+    dst[1] = (uint8_t)(value >> 48);
+    dst[2] = (uint8_t)(value >> 40);
+    dst[3] = (uint8_t)(value >> 32);
+    dst[4] = (uint8_t)(value >> 24);
+    dst[5] = (uint8_t)(value >> 16);
+    dst[6] = (uint8_t)(value >> 8);
+    dst[7] = (uint8_t)(value & 0xFF);
 }
 
 // Space paded on the left for numeric field

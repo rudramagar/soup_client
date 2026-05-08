@@ -1,4 +1,5 @@
 #include "scenario.h"
+#include "soup_session.h"
 
 #include <cstdio>
 #include <cstring>
@@ -6,29 +7,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-static void write_u16_be(uint8_t* p, uint16_t v) {
-    p[0] = (uint8_t)(v >> 8);
-    p[1] = (uint8_t)(v & 0xFF);
-}
-
-static void write_u32_be(uint8_t* p, uint32_t v) {
-    p[0] = (uint8_t)(v >> 24);
-    p[1] = (uint8_t)(v >> 16);
-    p[2] = (uint8_t)(v >> 8);
-    p[3] = (uint8_t)(v & 0xFF);
-}
-
-static void write_u64_be(uint8_t* p, uint64_t v) {
-    p[0] = (uint8_t)(v >> 56);
-    p[1] = (uint8_t)(v >> 48);
-    p[2] = (uint8_t)(v >> 40);
-    p[3] = (uint8_t)(v >> 32);
-    p[4] = (uint8_t)(v >> 24);
-    p[5] = (uint8_t)(v >> 16);
-    p[6] = (uint8_t)(v >> 8);
-    p[7] = (uint8_t)(v & 0xFF);
-}
 
 static bool parse_uint(const std::string& s, uint64_t max_value, uint64_t& out) {
     if (s.empty()) return false;

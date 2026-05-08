@@ -1,13 +1,7 @@
 #include "filter.h"
-#include <cstring>
+#include "soup_session.h"
 
-// Big-endian reader for order number (uint64)
-static uint64_t read_u64_be(const uint8_t* p) {
-    return ((uint64_t)p[0] << 56) | ((uint64_t)p[1] << 48) |
-           ((uint64_t)p[2] << 40) | ((uint64_t)p[3] << 32) |
-           ((uint64_t)p[4] << 24) | ((uint64_t)p[5] << 16) |
-           ((uint64_t)p[6] << 8)  | ((uint64_t)p[7]);
-}
+#include <cstring>
 
 // Constructor
 Filter::Filter()
