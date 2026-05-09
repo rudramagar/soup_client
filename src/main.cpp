@@ -20,6 +20,7 @@ static void usage(const char* prog) {
         "  --security <code>   filter by SecurityId/OrderbookId (repeatable)\n"
         "  --ordernum <num>    filter by OrderNumber (repeatable)\n"
         "  --scenario <path>   OUCH scenario file\n"
+        "  --listen            keep session open\n"
         "  -h                  show help\n",
         prog);
 }
@@ -40,6 +41,7 @@ int main(int argc, char** argv) {
         {"security", required_argument, 0, 1003},
         {"ordernum", required_argument, 0, 1004},
         {"scenario", required_argument, 0, 1005},
+        {"listen",   no_argument,       0, 1006},
         {0, 0, 0, 0}
     };
 
@@ -96,6 +98,10 @@ int main(int argc, char** argv) {
                 return 1;
             }
             args.scenario_file = optarg;
+            break;
+
+        case 1006:
+            args.listen_mode = true;
             break;
 
         case 'u':

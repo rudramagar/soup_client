@@ -15,6 +15,7 @@ struct AppArgs {
     bool     has_start_seq = false;
     uint64_t max_messages  = 0;
     bool     verbose       = false;
+    bool     listen_mode   = false;
 
     Filter   filter;
 };

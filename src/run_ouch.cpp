@@ -103,6 +103,7 @@ int run_ouch(const AppArgs& args) {
         },
         // on_idle — exit when silent for IDLE_TIMEOUT_SEC
         [&](time_t now) {
+            if (args.listen_mode) return true;
             return (now - last_data_time) < IDLE_TIMEOUT_SEC;
         });
 
