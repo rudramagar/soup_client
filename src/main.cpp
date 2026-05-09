@@ -21,6 +21,7 @@ static void usage(const char* prog) {
         "  --ordernum <num>    filter by OrderNumber (repeatable)\n"
         "  --scenario <path>   OUCH scenario file\n"
         "  --listen            keep session open\n"
+        "  --rate <n>          continuous send N msg/sec\n"              
         "  -h                  show help\n",
         prog);
 }
@@ -42,6 +43,7 @@ int main(int argc, char** argv) {
         {"ordernum", required_argument, 0, 1004},
         {"scenario", required_argument, 0, 1005},
         {"listen",   no_argument,       0, 1006},
+        {"rate",     required_argument, 0, 1007},
         {0, 0, 0, 0}
     };
 
@@ -103,6 +105,24 @@ int main(int argc, char** argv) {
         case 1006:
             args.listen_mode = true;
             break;
+
+        case 1007: {
+            if (!optarg) {
+                std::fprintf(stderr, "Invalid --rate\n");
+                usage(argv[0]);
+                return 1;
+            }
+
+            char* end = 0;
+            unsigned long v = std::strtoul(optarg, &end, 10);
+            if (end == optarg || *end != '\0' || v == 0) {
+                std::fprintf(stderr, "Invalid --rate: %s\n", optarg);
+                usage(argv[0]);
+                return 1;
+            }
+            args.rate = (uint32_t)v;
+            break;
+        }
 
         case 'u':
             session_arg = optarg;

@@ -16,6 +16,7 @@ struct AppArgs {
     uint64_t max_messages  = 0;
     bool     verbose       = false;
     bool     listen_mode   = false;
+    uint32_t rate          = 0;
 
     Filter   filter;
 };
