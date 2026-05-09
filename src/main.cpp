@@ -1,4 +1,5 @@
 #include "application.h"
+#include "config.h"
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -155,5 +156,14 @@ int main(int argc, char** argv) {
     args.mode = mode_arg;
     args.session_key = session_arg;
 
-    return run_app(args);
+    if (!load_config("config/config.yaml", args.mode, args.session_key)) {
+        return 1;
+    }
+
+    if (args.mode == "itch")    return run_itch(args);
+    if (args.mode == "glimpse") return run_glimpse(args);
+    if (args.mode == "ouch")    return run_ouch(args);
+
+    std::fprintf(stderr, "Unknown mode: %s\n", args.mode.c_str());
+    return 1;
 }

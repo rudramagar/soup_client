@@ -19,8 +19,6 @@ struct AppArgs {
     Filter   filter;
 };
 
-int run_app(const AppArgs& args);
-
 // Per protocol runners
 int run_itch(const AppArgs& args);
 int run_glimpse(const AppArgs& args);
