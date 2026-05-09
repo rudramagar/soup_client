@@ -8,11 +8,11 @@
 #include <cstdio>
 #include <cstdint>
 #include <string>
-#include <cerrno>
-#include <poll.h>
-#include <ctime>
 
-int Application::run_glimpse() {
+// Glimpse snapshot mode
+// output: >> {pkt_len,'S',field1,field2,...}
+// end:    >> {pkt_len,'S','G',next_seq}
+int run_glimpse(const AppArgs& args) {
     const AppConfig& cfg = config();
     const ProtocolConfig& proto = cfg.protocol;
     const SessionConfig& sess = cfg.session;
@@ -23,146 +23,67 @@ int Application::run_glimpse() {
     TcpSocket sock;
     std::string session_id;
     uint64_t current_seq = 0;
-    uint64_t decoded_count = 0;
 
     if (!connect_and_login(sock, sess, login_seq, session_id, current_seq)) {
         return 1;
     }
 
-    // heartbeat and timeout settings
-    int heartbeat_interval_ms = proto.heartbeat_interval_sec * 1000;
-    if (heartbeat_interval_ms <= 0) heartbeat_interval_ms = 15000;
-    int server_timeout_sec = (heartbeat_interval_ms * 2) / 1000;
+    SessionLoopOptions opts;
+    opts.heartbeat_interval_sec = proto.heartbeat_interval_sec;
+    opts.server_timeout_sec     = proto.heartbeat_interval_sec * 2;
+    opts.verbose                = args.verbose;
+    opts.ouch_arrows            = false;
 
-    time_t last_send_time = std::time(0);
-    time_t last_recv_time = std::time(0);
+    uint64_t decoded_count = 0;
 
-    uint8_t recv_buf[RECV_BUF_CAPACITY];
-
-    struct pollfd poll_fd;
-    poll_fd.fd = sock.get_fd();
-    poll_fd.events = POLLIN;
-
-    while (1) {
-        int poll_result = ::poll(&poll_fd, 1, heartbeat_interval_ms);
-        time_t now = std::time(0);
-
-        if (poll_result < 0) {
-            if (errno == EINTR) continue;
-            break;
-        }
-
-        // poll timeout: send client heartbeat
-        if (poll_result == 0) {
-            if (!send_heartbeat(sock)) break;
-            last_send_time = now;
-
-            if ((now - last_recv_time) > server_timeout_sec) {
-                break;
-            }
-            continue;
-        }
-
-        // read packet header
-        uint8_t header[SOUP_HEADER_LEN];
-        if (!sock.recv_exact(header, SOUP_HEADER_LEN)) {
-            break;
-        }
-
-        last_recv_time = now;
-
-        uint16_t packet_length = read_u16_be(header);
-        char packet_type = (char)header[2];
-        int payload_length = (packet_length > 1) ? (int)(packet_length - 1) : 0;
-
-        // Sequenced Data — contains one snapshot message
-        if (packet_type == SOUP_SEQUENCED_DATA) {
-            if (payload_length == 0) {
-                continue;
+    SessionExit rc = run_session(sock, opts,
+        // on_sequenced — one snapshot message arrived
+        [&](const uint8_t* payload, uint16_t payload_len, uint16_t pkt_len) {
+            if (payload_len == 0) {
+                return true;
             }
 
-            if (payload_length > RECV_BUF_CAPACITY) {
-                drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
-                continue;
-            }
-
-            if (!sock.recv_exact(recv_buf, payload_length)) {
-                break;
-            }
-
-            // End of Snapshot (message type 'G')
-            if (payload_length >= 1 && (char)recv_buf[0] == 'G') {
+            // End of Snapshot — message type 'G'
+            if (payload_len >= 1 && (char)payload[0] == 'G') {
                 // sequence number offset varies by server:
-                // 9 bytes: MessageType(1) + SequenceNumber(8)
+                // 9 bytes:  MessageType(1) + SequenceNumber(8)
                 // 17 bytes: MessageType(1) + Timestamp(8) + SequenceNumber(8)
                 uint64_t realtime_next_sequence = 0;
-                int sequence_offset = (payload_length >= 17) ? 9 : 1;
-                if (sequence_offset + 8 <= payload_length) {
-                    realtime_next_sequence = read_u64_be(recv_buf + sequence_offset);
+                int sequence_offset = (payload_len >= 17) ? 9 : 1;
+                if (sequence_offset + 8 <= payload_len) {
+                    realtime_next_sequence = read_u64_be(payload + sequence_offset);
                 }
 
-                std::printf(">> {%u,'S','G', %llu}\n",
-                            (unsigned)packet_length,
+                std::printf(">> {%u,'S','G',%llu}\n",
+                            (unsigned)pkt_len,
                             (unsigned long long)realtime_next_sequence);
-                sock.close();
-                return 0;
+                return false;   // exit cleanly via SESSION_OK
             }
 
             decoded_count++;
 
-            // apply message filters
-            if (!filter.passes(recv_buf, (uint16_t)payload_length, cfg)) {
-                continue;
+            if (!args.filter.passes(payload, payload_len, cfg)) {
+                return true;
             }
 
-            // build output prefix: >> {pkt_len, 'S'
             char prefix[64];
-            std::snprintf(prefix, sizeof(prefix), ">> {%u,'S'", (unsigned)packet_length);
+            std::snprintf(prefix, sizeof(prefix), ">> {%u,'S'", (unsigned)pkt_len);
 
-            decode_itch_message(recv_buf, (uint16_t)payload_length, cfg,
-                               std::string(prefix), verbose);
+            decode_itch_message(payload, payload_len, cfg,
+                                std::string(prefix), args.verbose);
 
-            // stop after N messages
-            if (max_messages != 0 && decoded_count >= max_messages) {
-                sock.close();
-                return 0;
+            if (args.max_messages != 0 && decoded_count >= args.max_messages) {
+                return false;   // exit cleanly via SESSION_OK
             }
-            continue;
-        }
-
-        // Server Heartbeat — print only in verbose mode
-        if (packet_type == SOUP_SERVER_HEARTBEAT) {
-            if (payload_length > 0) {
-                drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
-            }
-
-            if (verbose) {
-                std::printf(">> {%u,'H'}\n", (unsigned)packet_length);
-            }
-
-            if ((now - last_send_time) >= (heartbeat_interval_ms / 1000)) {
-                if (!send_heartbeat(sock)) break;
-                last_send_time = now;
-            }
-            continue;
-        }
-
-        // End of Session
-        if (packet_type == SOUP_END_OF_SESSION) {
-            if (payload_length > 0) {
-                drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
-            }
-            sock.close();
-            return 0;
-        }
-
-        // unknown packet type — drain and skip
-        if (payload_length > 0) {
-            drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
-        }
-
-    }
+            return true;
+        });
 
     sock.close();
+
+    if (rc == SESSION_OK || rc == SESSION_END_OF_SESSION) {
+        return 0;
+    }
+
+    // SESSION_SOCKET_ERROR or SESSION_SERVER_TIMEOUT
     return 1;
 }

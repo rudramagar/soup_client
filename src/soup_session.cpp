@@ -1,8 +1,11 @@
 #include "soup_session.h"
 #include "soupbintcp.h"
- 
+
 #include <cstdio>
 #include <cstring>
+#include <cerrno>
+#include <ctime>
+#include <poll.h>
 
 uint16_t read_u16_be(const uint8_t* src) {
     return (uint16_t)((uint16_t)src[0] << 8 | (uint16_t)src[1]);
@@ -236,4 +239,151 @@ bool connect_and_login(TcpSocket& sock,
 
     sock.close();
     return false;
+}
+
+// =============================================================================
+// run_session: shared receive loop
+// =============================================================================
+SessionExit run_session(TcpSocket& sock,
+                        const SessionLoopOptions& opts,
+                        OnSequencedFn on_sequenced,
+                        OnIdleFn      on_idle) {
+
+    const char* arrow_recv = opts.ouch_arrows ? "<<" : ">>";
+    char open_b  = opts.ouch_arrows ? '(' : '{';
+    char close_b = opts.ouch_arrows ? ')' : '}';
+
+    // Heartbeat interval in ms (used as poll timeout). Default 1s if unset.
+    int heartbeat_ms = opts.heartbeat_interval_sec * 1000;
+    if (heartbeat_ms <= 0) heartbeat_ms = 1000;
+
+    // If on_idle is supplied, wake more often than the heartbeat so callbacks
+    // can react quickly (e.g. OUCH idle-exit at 1s).
+    int poll_timeout_ms = on_idle ? 200 : heartbeat_ms;
+
+    time_t last_send_time = std::time(0);
+    time_t last_recv_time = std::time(0);
+
+    uint8_t recv_buf[RECV_BUF_CAPACITY];
+
+    struct pollfd poll_fd;
+    poll_fd.fd = sock.get_fd();
+    poll_fd.events = POLLIN;
+
+    while (true) {
+        int poll_result = ::poll(&poll_fd, 1, poll_timeout_ms);
+        time_t now = std::time(0);
+
+        if (poll_result < 0) {
+            if (errno == EINTR) continue;
+            return SESSION_SOCKET_ERROR;
+        }
+
+        // Caller-driven idle check (OUCH idle-exit, send pacing, etc.)
+        if (on_idle && !on_idle(now)) {
+            return SESSION_OK;
+        }
+
+        // No data this wake — maybe send heartbeat, maybe time out.
+        if (poll_result == 0) {
+            if ((now - last_send_time) >= opts.heartbeat_interval_sec) {
+                if (!send_heartbeat(sock)) return SESSION_SOCKET_ERROR;
+                last_send_time = now;
+            }
+            if (opts.server_timeout_sec > 0 &&
+                (now - last_recv_time) > opts.server_timeout_sec) {
+                return SESSION_SERVER_TIMEOUT;
+            }
+            continue;
+        }
+
+        // Read SoupBinTCP header
+        uint8_t header[SOUP_HEADER_LEN];
+        if (!sock.recv_exact(header, SOUP_HEADER_LEN)) {
+            return SESSION_SOCKET_ERROR;
+        }
+
+        last_recv_time = now;
+
+        uint16_t packet_length = read_u16_be(header);
+        char     packet_type   = (char)header[2];
+        int      payload_length = (packet_length > 1) ? (int)(packet_length - 1) : 0;
+
+        // Sequenced Data — dispatch to caller
+        if (packet_type == SOUP_SEQUENCED_DATA) {
+            if (payload_length == 0) {
+                if (!on_sequenced(0, 0, packet_length)) return SESSION_OK;
+                continue;
+            }
+            if (payload_length > RECV_BUF_CAPACITY) {
+                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
+                    return SESSION_SOCKET_ERROR;
+                }
+                continue;
+            }
+            if (!sock.recv_exact(recv_buf, payload_length)) {
+                return SESSION_SOCKET_ERROR;
+            }
+            if (!on_sequenced(recv_buf, (uint16_t)payload_length, packet_length)) {
+                return SESSION_OK;
+            }
+            continue;
+        }
+
+        // Server Heartbeat — drain, optionally print
+        if (packet_type == SOUP_SERVER_HEARTBEAT) {
+            if (payload_length > 0) {
+                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
+                    return SESSION_SOCKET_ERROR;
+                }
+            }
+            if (opts.verbose) {
+                std::printf("%s %c%u,'H'%c\n",
+                            arrow_recv, open_b, (unsigned)packet_length, close_b);
+            }
+            // If we've been silent too long, send our own heartbeat
+            if ((now - last_send_time) >= opts.heartbeat_interval_sec) {
+                if (!send_heartbeat(sock)) return SESSION_SOCKET_ERROR;
+                last_send_time = now;
+            }
+            continue;
+        }
+
+        // End of Session
+        if (packet_type == SOUP_END_OF_SESSION) {
+            if (payload_length > 0) {
+                drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
+            }
+            return SESSION_END_OF_SESSION;
+        }
+
+        // Debug — drain, optionally print
+        if (packet_type == SOUP_DEBUG) {
+            if (payload_length > 0 && payload_length <= RECV_BUF_CAPACITY) {
+                if (!sock.recv_exact(recv_buf, payload_length)) {
+                    return SESSION_SOCKET_ERROR;
+                }
+                if (opts.verbose) {
+                    std::printf("%s %c%u,'+','%.*s'%c\n",
+                                arrow_recv,
+                                open_b,
+                                (unsigned)packet_length,
+                                payload_length, (const char*)recv_buf,
+                                close_b);
+                }
+            } else if (payload_length > 0) {
+                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
+                    return SESSION_SOCKET_ERROR;
+                }
+            }
+            continue;
+        }
+
+        // Unknown packet type — drain and skip
+        if (payload_length > 0) {
+            if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
+                return SESSION_SOCKET_ERROR;
+            }
+        }
+    }
 }

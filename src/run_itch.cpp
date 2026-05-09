@@ -8,215 +8,99 @@
 #include <cstdio>
 #include <cstdint>
 #include <string>
-#include <cerrno>
-#include <poll.h>
-#include <ctime>
 #include <unistd.h>
 
-int Application::run_itch() {
+// ITCH live mode
+// output: >> {'session',seq,field1,field2,...}
+// end:    >> {'session',seq,'Z'}
+int run_itch(const AppArgs& args) {
     const AppConfig& cfg = config();
     const ProtocolConfig& proto = cfg.protocol;
     const SessionConfig& sess = cfg.session;
 
     uint64_t login_seq = 1;
-    if (has_start_seq) login_seq = start_seq;
+    if (args.has_start_seq) login_seq = args.start_seq;
 
-    std::string session_id;
-    uint64_t current_seq = 0;
-    uint64_t decoded_count = 0;
-
-    int max_reconnect_attempts = proto.max_reconnect_attempts;
     int reconnect_delay_sec = proto.reconnect_delay_sec;
     if (reconnect_delay_sec <= 0) reconnect_delay_sec = 5;
     int reconnect_attempt = 0;
 
-    while (1) {
+    // Outer loop: each iteration is one connected session.
+    while (true) {
         TcpSocket sock;
+        std::string session_id;
+        uint64_t current_seq = 0;
 
         if (!connect_and_login(sock, sess, login_seq, session_id, current_seq)) {
             reconnect_attempt++;
-            if (max_reconnect_attempts > 0 && reconnect_attempt >= max_reconnect_attempts) {
+            if (proto.max_reconnect_attempts > 0 &&
+                reconnect_attempt >= proto.max_reconnect_attempts) {
                 return 1;
             }
             ::sleep((unsigned)reconnect_delay_sec);
             continue;
         }
-
-        // login success, reset reconnect counter
         reconnect_attempt = 0;
 
-        // heartbeat and timeout settings
-        int heartbeat_interval_ms = proto.heartbeat_interval_sec * 1000;
-        if (heartbeat_interval_ms <= 0) heartbeat_interval_ms = 15000;
-        int server_timeout_sec = (heartbeat_interval_ms * 2) / 1000;
+        SessionLoopOptions opts;
+        opts.heartbeat_interval_sec = proto.heartbeat_interval_sec;
+        opts.server_timeout_sec     = proto.heartbeat_interval_sec * 2;
+        opts.verbose                = args.verbose;
+        opts.ouch_arrows            = false;
 
-        time_t last_send_time = std::time(0);
-        time_t last_recv_time = std::time(0);
+        uint64_t decoded_count = 0;
 
-        uint8_t recv_buf[RECV_BUF_CAPACITY];
-
-        struct pollfd poll_fd;
-        poll_fd.fd = sock.get_fd();
-        poll_fd.events = POLLIN;
-
-        bool needs_reconnect = false;
-
-        while (1) {
-            int poll_result = ::poll(&poll_fd, 1, heartbeat_interval_ms);
-            time_t now = std::time(0);
-
-            if (poll_result < 0) {
-                if (errno == EINTR) continue;
-                needs_reconnect = true;
-                break;
-            }
-
-            // poll timeout: send client heartbeat
-            if (poll_result == 0) {
-                if (!send_heartbeat(sock)) { needs_reconnect = true; break; }
-                last_send_time = now;
-
-                if ((now - last_recv_time) > server_timeout_sec) {
-                    needs_reconnect = true;
-                    break;
-                }
-                continue;
-            }
-
-            // read packet header (2 bytes length + 1 byte type)
-            uint8_t header[SOUP_HEADER_LEN];
-            if (!sock.recv_exact(header, SOUP_HEADER_LEN)) {
-                needs_reconnect = true;
-                break;
-            }
-
-            last_recv_time = now;
-
-            uint16_t packet_length = read_u16_be(header);
-            char packet_type = (char)header[2];
-            int payload_length = (packet_length > 1) ? (int)(packet_length - 1) : 0;
-
-            // Sequenced Data — contains one ITCH message
-            if (packet_type == SOUP_SEQUENCED_DATA) {
-                if (payload_length == 0) {
+        SessionExit rc = run_session(sock, opts,
+            // on_sequenced — one ITCH message arrived
+            [&](const uint8_t* payload, uint16_t payload_len, uint16_t /*pkt_len*/) {
+                if (payload_len == 0) {
                     current_seq++;
-                    continue;
-                }
-
-                if (payload_length > RECV_BUF_CAPACITY) {
-                    if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                        needs_reconnect = true; break;
-                    }
-                    current_seq++;
-                    continue;
-                }
-
-                if (!sock.recv_exact(recv_buf, payload_length)) {
-                    needs_reconnect = true; break;
+                    return true;
                 }
 
                 current_seq++;
                 decoded_count++;
 
-                // apply message filters
-                if (!filter.passes(recv_buf, (uint16_t)payload_length, cfg)) {
-                    continue;
+                if (!args.filter.passes(payload, payload_len, cfg)) {
+                    return true;
                 }
 
-                // build output prefix: >> {'session', seq
                 char prefix[128];
                 std::snprintf(prefix, sizeof(prefix),
                               ">> {'%.*s',%llu",
                               (int)session_id.size(), session_id.c_str(),
                               (unsigned long long)current_seq);
 
-                decode_itch_message(recv_buf, (uint16_t)payload_length, cfg,
-                                   std::string(prefix), verbose);
+                decode_itch_message(payload, payload_len, cfg,
+                                    std::string(prefix), args.verbose);
 
-                // stop after N messages
-                if (max_messages != 0 && decoded_count >= max_messages) {
-                    send_logout(sock);
-                    sock.close();
-                    return 0;
+                if (args.max_messages != 0 && decoded_count >= args.max_messages) {
+                    return false;   // exit cleanly via SESSION_OK
                 }
-                continue;
-            }
-
-            // Server Heartbeat — print only in verbose mode
-            if (packet_type == SOUP_SERVER_HEARTBEAT) {
-                if (payload_length > 0) {
-                    if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                        needs_reconnect = true; break;
-                    }
-                }
-
-                if (verbose) {
-                    std::printf(">> {%u,'0'}\n", (unsigned)packet_length);
-                }
-
-                if ((now - last_send_time) >= (heartbeat_interval_ms / 1000)) {
-                    if (!send_heartbeat(sock)) { needs_reconnect = true; break; }
-                    last_send_time = now;
-                }
-                continue;
-            }
-
-            // End of Session
-            if (packet_type == SOUP_END_OF_SESSION) {
-                if (payload_length > 0) {
-                    drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
-                }
-
-                std::printf(">> {'%.*s',%llu,'Z'}\n",
-                            (int)session_id.size(), session_id.c_str(),
-                            (unsigned long long)current_seq);
-                sock.close();
-                return 0;
-            }
-
-            // Debug — print only in verbose mode
-            if (packet_type == SOUP_DEBUG) {
-                if (payload_length > 0 && payload_length <= RECV_BUF_CAPACITY) {
-                    if (!sock.recv_exact(recv_buf, payload_length)) {
-                        needs_reconnect = true; break;
-                    }
-                    if (verbose) {
-                        std::printf(">> {%u,'+','%.*s'}\n",
-                                    (unsigned)packet_length,
-                                    payload_length, (const char*)recv_buf);
-                    }
-                } else if (payload_length > 0) {
-                    if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                        needs_reconnect = true; break;
-                    }
-                }
-                continue;
-            }
-
-            // unknown packet type — drain and skip
-            if (payload_length > 0) {
-                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                    needs_reconnect = true; break;
-                }
-            }
-
-        } // receive loop
+                return true;
+            });
 
         sock.close();
 
-        if (!needs_reconnect) {
+        if (rc == SESSION_OK) {
+            // Caller-driven exit (max-msg reached). Done.
             return 0;
         }
 
-        // reconnect from last known sequence
-        login_seq = current_seq;
-        reconnect_attempt++;
-
-        if (max_reconnect_attempts > 0 && reconnect_attempt >= max_reconnect_attempts) {
-            return 1;
+        if (rc == SESSION_END_OF_SESSION) {
+            std::printf(">> {'%.*s',%llu,'Z'}\n",
+                        (int)session_id.size(), session_id.c_str(),
+                        (unsigned long long)current_seq);
+            return 0;
         }
 
+        // SESSION_SOCKET_ERROR or SESSION_SERVER_TIMEOUT — try to reconnect
+        login_seq = current_seq;
+        reconnect_attempt++;
+        if (proto.max_reconnect_attempts > 0 &&
+            reconnect_attempt >= proto.max_reconnect_attempts) {
+            return 1;
+        }
         ::sleep((unsigned)reconnect_delay_sec);
-
     }
 }

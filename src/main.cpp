@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     std::setvbuf(stdout, 0, _IOLBF, 0);
     std::setvbuf(stderr, 0, _IOLBF, 0);
 
-    Application app;
+    AppArgs args;
 
     std::string mode_arg;
     std::string session_arg;
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
                 usage(argv[0]);
                 return 1;
             }
-            app.get_filter().add_type(optarg[0]);
+            args.filter.add_type(optarg[0]);
             break;
 
         case 1003:
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
                 usage(argv[0]);
                 return 1;
             }
-            app.get_filter().add_security(optarg);
+            args.filter.add_security(optarg);
             break;
 
         case 1004: {
@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
                 usage(argv[0]);
                 return 1;
             }
-            app.get_filter().add_order_number((uint64_t)v);
+            args.filter.add_order_number((uint64_t)v);
             break;
         }
 
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
                 usage(argv[0]);
                 return 1;
             }
-            app.set_scenario_file(optarg);
+            args.scenario_file = optarg;
             break;
 
         case 'u':
@@ -109,7 +109,8 @@ int main(int argc, char** argv) {
                 usage(argv[0]);
                 return 1;
             }
-            app.set_start_seq((uint64_t)v);
+            args.start_seq = (uint64_t)v;
+            args.has_start_seq = true;
             break;
         }
 
@@ -121,12 +122,12 @@ int main(int argc, char** argv) {
                 usage(argv[0]);
                 return 1;
             }
-            app.set_max_messages((uint64_t)v);
+            args.max_messages = (uint64_t)v;
             break;
         }
 
         case 'v':
-            app.set_verbose(true);
+            args.verbose = true;
             break;
 
         case 'h':
@@ -151,8 +152,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    app.set_mode(mode_arg);
-    app.set_session_key(session_arg);
+    args.mode = mode_arg;
+    args.session_key = session_arg;
 
-    return app.run();
+    return run_app(args);
 }
