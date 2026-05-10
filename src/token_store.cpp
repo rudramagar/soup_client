@@ -125,3 +125,12 @@ bool next_tokens(const std::string& username,
     if (!write_counter(path, new_high)) return false;
     return true;
 }
+
+bool sync_next_token(const std::string& username, uint32_t value) {
+    if (!ensure_tokens_dir()) return false;
+    std::string path = token_file_path(username);
+    std::ofstream f(path);
+    if (!f) return false;
+    f << value;
+    return f.good();
+}

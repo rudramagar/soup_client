@@ -8,4 +8,6 @@ bool next_tokens(const std::string& username,
                  uint32_t count,
                  uint32_t& out_base);
 
+bool sync_next_token(const std::string& username, uint32_t value);
+
 #endif

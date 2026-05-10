@@ -22,6 +22,7 @@ static void usage(const char* prog) {
         "  --scenario <path>   OUCH scenario file\n"
         "  --listen            keep session open\n"
         "  --rate <n>          continuous send N msg/sec\n"              
+        "  --sync-token        sync expected OrderToken number\n"
         "  -h                  show help\n",
         prog);
 }
@@ -37,13 +38,14 @@ int main(int argc, char** argv) {
     std::string session_arg;
 
     static struct option long_options[] = {
-        {"mode",     required_argument, 0, 1001},
-        {"type",     required_argument, 0, 1002},
-        {"security", required_argument, 0, 1003},
-        {"ordernum", required_argument, 0, 1004},
-        {"scenario", required_argument, 0, 1005},
-        {"listen",   no_argument,       0, 1006},
-        {"rate",     required_argument, 0, 1007},
+        {"mode",        required_argument, 0, 1001},
+        {"type",        required_argument, 0, 1002},
+        {"security",    required_argument, 0, 1003},
+        {"ordernum",    required_argument, 0, 1004},
+        {"scenario",    required_argument, 0, 1005},
+        {"listen",      no_argument,       0, 1006},
+        {"rate",        required_argument, 0, 1007},
+        {"sync-token",  required_argument, 0, 1008},
         {0, 0, 0, 0}
     };
 
@@ -123,6 +125,10 @@ int main(int argc, char** argv) {
             args.rate = (uint32_t)v;
             break;
         }
+
+        case 1008:
+            args.sync_token = true;
+            break;
 
         case 'u':
             session_arg = optarg;

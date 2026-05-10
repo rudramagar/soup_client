@@ -17,6 +17,7 @@ struct AppArgs {
     bool     verbose       = false;
     bool     listen_mode   = false;
     uint32_t rate          = 0;
+    bool     sync_token    = false;
 
     Filter   filter;
 };
