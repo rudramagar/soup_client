@@ -8,7 +8,7 @@ LDLIBS   ?= -lpthread
 
 SRC := $(wildcard src/*.cpp)
 OBJ := $(patsubst src/%.cpp, build/%.o, $(SRC))
-BIN := soupbin_client
+BIN := soup_client
 
 .PHONY: all clean
 

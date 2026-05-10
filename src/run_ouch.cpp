@@ -14,23 +14,17 @@
 #include <vector>
 
 // OUCH order entry mode
-// outbound (client -> server):  >> (pkt_len,'U',msg_type,...)
-// inbound  (server -> client):  << (pkt_len,'S',msg_type,...)
 int run_ouch(const AppArgs& args) {
     const AppConfig& cfg = config();
     const ProtocolConfig& proto = cfg.protocol;
     const SessionConfig& sess = cfg.session;
 
     // Load scenario file
-    std::string scn_path = args.scenario_file;
-    if (scn_path.empty()) {
-        scn_path = "scenarios/ouch_message.txt";
-    }
-
+    // Skip on the sync_token mode
     std::vector<Message> messages;
     uint32_t token_count = 0;
     if (!args.sync_token) {
-        if (!load_scenario(scn_path, cfg, messages, token_count)) {
+        if (!load_scenario(args.scenario_file, cfg, messages, token_count)) {
             return 1;
         }
     }

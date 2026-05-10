@@ -9,9 +9,6 @@
 static void usage(const char* prog) {
     std::fprintf(stderr,
         "Usage: %s --mode <protocol> -u <session_key> [options]\n\n"
-        "Required:\n"
-        "  --mode <protocol>   protocols (itch, glimpse, ouch)\n"
-        "  -u <session_key>    sessions\n\n"
         "Options:\n"
         "  -s <seq>            start from sequence number\n"
         "  -n <count>          stop after N messages\n"
@@ -19,7 +16,7 @@ static void usage(const char* prog) {
         "  --type <X>          filter by message type (repeatable)\n"
         "  --security <code>   filter by SecurityId/OrderbookId (repeatable)\n"
         "  --ordernum <num>    filter by OrderNumber (repeatable)\n"
-        "  --scenario <path>   OUCH scenario file\n"
+        "  --scenario <path>   ouch scenario file\n"
         "  --listen            keep session open\n"
         "  --rate <n>          continuous send N msg/sec\n"              
         "  --sync-token        sync expected OrderToken number\n"

@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <dirent.h>
 
 static bool parse_uint(const std::string& s, uint64_t max_value, uint64_t& out) {
     if (s.empty()) return false;
@@ -230,10 +231,28 @@ static bool parse_line(const std::string& line,
     return true;
 }
 
-bool load_scenario(const std::string& path,
+bool load_scenario(std::string path,
                    const AppConfig& cfg,
                    std::vector<Message>& out_messages,
                    uint32_t& out_token_count) {
+
+    if (path.empty()) {
+        std::vector<std::string> entries;
+        DIR* dir = ::opendir("scenarios");
+        if (dir) {
+            struct dirent* e;
+            while ((e = ::readdir(dir)) != 0) {
+                if (e->d_name[0] == '.') continue;
+                if (e->d_type == DT_DIR) continue;
+                entries.push_back(std::string("scenarios/") + e->d_name);
+            }
+            ::closedir(dir);
+        }
+        if (entries.size() != 1) {
+            return false;
+        }
+        path = entries[0];
+    }
 
     std::ifstream file(path.c_str());
     if (!file) {
@@ -243,31 +262,21 @@ bool load_scenario(const std::string& path,
 
     out_messages.clear();
     out_token_count = 0;
-
     std::unordered_map<std::string, uint32_t> token_table;
-
     std::string line;
-    int line_no = 0;
-
     while (std::getline(file, line)) {
-        line_no++;
         strip_eol(line);
-
         if (line.empty()) continue;
         if (line[0] == '#') continue;
-
         Message msg;
         std::string err;
         if (!parse_line(line, cfg, token_table, msg, err)) {
-            std::printf("Scenario %s:%d: %s\n", path.c_str(), line_no, err.c_str());
             return false;
         }
-
         out_messages.push_back(msg);
     }
 
     if (out_messages.empty()) {
-        std::printf("Scenario %s: no messages found\n", path.c_str());
         return false;
     }
 

@@ -20,7 +20,7 @@ struct Message {
     std::vector<TokenRef> tokens;
 };
 
-bool load_scenario(const std::string& path,
+bool load_scenario(std::string path,
                    const AppConfig& cfg,
                    std::vector<Message>& out_messages,
                    uint32_t& out_token_count);

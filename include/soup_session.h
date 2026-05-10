@@ -45,13 +45,11 @@ bool drain_payload(TcpSocket& sock,
                    int scratch_buf_capacity,
                    int bytes_to_drain);
 
-// =============================================================================
 // run_session: shared receive loop used by all three protocols.
 //
 // Polls the socket, reads SoupBinTCP packets, and dispatches Sequenced Data
 // to a caller-supplied callback. Server Heartbeats, End-of-Session, and
 // Debug packets are handled internally.
-// =============================================================================
 
 struct SessionLoopOptions {
     int  heartbeat_interval_sec = 1;
