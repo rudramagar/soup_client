@@ -77,14 +77,29 @@ static bool encode_field(const FieldSpec& field,
     }
 
     case FIELD_STRING: {
-        if (value.size() > field.size) {
+         bool is_security = (field.name == "SecurityId" ||
+                            field.name == "OrderbookId");
+
+         if (is_security) {
+             if (value.size() != field.size) {
+                err = "field '" + field.name + "' value '" + value + "' is " +
+                      std::to_string(value.size()) + " chars, spec requires exactly " +
+                      std::to_string(field.size);
+                return false;
+            }
+            std::memcpy(p, value.data(), field.size);
+            return true;
+         }
+
+         if (value.size() > field.size) {
             err = "field '" + field.name + "' value '" + value +
                   "' exceeds spec size " + std::to_string(field.size);
             return false;
-        }
-        std::memset(p, ' ', field.size);
-        if (!value.empty()) std::memcpy(p, value.data(), value.size());
-        return true;
+         }
+
+         std::memset(p, ' ', field.size);
+         if (!value.empty()) std::memcpy(p, value.data(), value.size());
+         return true;
     }
 
     case FIELD_UINT8: {
@@ -148,29 +163,28 @@ static bool parse_line(const std::string& line,
                        Message& out,
                        std::string& err) {
 
+    
     std::vector<std::string> tokens = split_pipes(line);
-    if (tokens.size() < 3) {
-        err = "expected at least 3 tokens (length|U|msg_type), got " +
-              std::to_string(tokens.size());
+
+    size_t base = (!tokens.empty() && tokens[0] == "U") ? 0 : 1;
+    size_t min_tokens = base + 2;
+    if (tokens.size() < min_tokens) {
+        err = "expected at least '[len|]U|msg_type', got " +
+              std::to_string(tokens.size()) + " tokens";
         return false;
     }
 
-    uint64_t declared_length;
-    if (!parse_uint(tokens[0], 0xFFFFULL, declared_length)) {
-        err = "invalid length token: '" + tokens[0] + "'";
+    if (tokens[base].size() != 1 || tokens[base][0] != 'U') {
+        err = "expected SoupBinTCP type 'U', got '" + tokens[base] + "'";
         return false;
     }
 
-    if (tokens[1].size() != 1 || tokens[1][0] != 'U') {
-        err = "expected SoupBinTCP type 'U', got '" + tokens[1] + "'";
+    if (tokens[base + 1].size() != 1) {
+        err = "expected single-char OUCH message type, got '" +
+              tokens[base + 1] + "'";
         return false;
     }
-
-    if (tokens[2].size() != 1) {
-        err = "expected single-char OUCH message type, got '" + tokens[2] + "'";
-        return false;
-    }
-    char msg_type = tokens[2][0];
+    char msg_type = tokens[base + 1][0];
 
     const MsgSpec* spec = cfg.inbound_spec_by_type[(unsigned char)msg_type];
     if (!spec) {
@@ -179,15 +193,10 @@ static bool parse_line(const std::string& line,
     }
 
     uint32_t expected_length = 1 + spec->total_length;
-    if ((uint32_t)declared_length != expected_length) {
-        err = "declared length " + std::to_string(declared_length) +
-              " does not match spec-computed length " + std::to_string(expected_length) +
-              " for message type '" + std::string(1, msg_type) + "'";
-        return false;
-    }
-
-    size_t field_tokens = tokens.size() - 3;
+    size_t header_tokens = base + 2;
+    size_t field_tokens = tokens.size() - header_tokens;
     size_t spec_fields_excl_type = spec->fields.size() - 1;
+
     if (field_tokens != spec_fields_excl_type) {
         err = "expected " + std::to_string(spec_fields_excl_type) +
               " fields for OUCH '" + std::string(1, msg_type) + "', got " +
@@ -208,7 +217,7 @@ static bool parse_line(const std::string& line,
 
     for (size_t i = 1; i < spec->fields.size(); i++) {
         const FieldSpec& field = spec->fields[i];
-        const std::string& value = tokens[3 + (i - 1)];
+        const std::string& value = tokens[header_tokens + (i - 1)];
 
         if (is_token_field(field)) {
             if (is_token_placeholder(value)) {
@@ -264,13 +273,17 @@ bool load_scenario(std::string path,
     out_token_count = 0;
     std::unordered_map<std::string, uint32_t> token_table;
     std::string line;
+    uint32_t line_no = 0;
     while (std::getline(file, line)) {
+        line_no++;
         strip_eol(line);
         if (line.empty()) continue;
         if (line[0] == '#') continue;
         Message msg;
         std::string err;
         if (!parse_line(line, cfg, token_table, msg, err)) {
+            std::printf("Scenario parse error at %s:%u: %s\n",
+                        path.c_str(), line_no, err.c_str());
             return false;
         }
         out_messages.push_back(msg);
