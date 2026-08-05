@@ -9,7 +9,7 @@
 #include <vector>
 #include <dirent.h>
 
-static bool parse_uint(const std::string& s, uint64_t max_value, uint64_t& out) {
+static bool parse_uint(const std::string& s, uint64_t& out) {
     if (s.empty()) return false;
     uint64_t v = 0;
     for (size_t i = 0; i < s.size(); i++) {
@@ -17,7 +17,6 @@ static bool parse_uint(const std::string& s, uint64_t max_value, uint64_t& out) 
         if (c < '0' || c > '9') return false;
         if (v > (uint64_t)~0ULL / 10) return false;
         v = v * 10 + (uint64_t)(c - '0');
-        if (v > max_value) return false;
     }
     out = v;
     return true;
@@ -104,7 +103,7 @@ static bool encode_field(const FieldSpec& field,
 
     case FIELD_UINT8: {
         uint64_t v;
-        if (!parse_uint(value, 0xFFULL, v)) {
+        if (!parse_uint(value, v)) {
             err = "field '" + field.name + "' invalid uint8: '" + value + "'";
             return false;
         }
@@ -114,7 +113,7 @@ static bool encode_field(const FieldSpec& field,
 
     case FIELD_UINT16: {
         uint64_t v;
-        if (!parse_uint(value, 0xFFFFULL, v)) {
+        if (!parse_uint(value, v)) {
             err = "field '" + field.name + "' invalid uint16: '" + value + "'";
             return false;
         }
@@ -124,7 +123,7 @@ static bool encode_field(const FieldSpec& field,
 
     case FIELD_UINT32: {
         uint64_t v;
-        if (!parse_uint(value, 0xFFFFFFFFULL, v)) {
+        if (!parse_uint(value, v)) {
             err = "field '" + field.name + "' invalid uint32: '" + value + "'";
             return false;
         }
@@ -134,7 +133,7 @@ static bool encode_field(const FieldSpec& field,
 
     case FIELD_UINT64: {
         uint64_t v;
-        if (!parse_uint(value, 0xFFFFFFFFFFFFFFFFULL, v)) {
+        if (!parse_uint(value, v)) {
             err = "field '" + field.name + "' invalid uint64: '" + value + "'";
             return false;
         }
