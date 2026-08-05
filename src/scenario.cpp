@@ -22,6 +22,48 @@ static bool parse_uint(const std::string& s, uint64_t& out) {
     return true;
 }
 
+// Scale pricing
+// 1. a value with a '.' is manual price, scaled by 10^decimals.
+//          -> example: 21607.8
+//         a value without a '.' is treated as the pre-scaled integer.
+//          -> example: 216078
+//  2. Over-precision (more fractional digits than `decimal`) will be rejected.
+//  3. Decimal count agnostic: scale is computed as 10^decimals in a loop.
+
+static bool scale_decimal(const std::string& value, uint32_t decimals,
+                          const std::string& field_name,
+                          std::string& scaled_out, std::string& err) {
+
+    size_t dot = value.find('.');
+    if (dot == std::string::npos) {
+        scaled_out = value; // if no dots pass through as pre-scaled
+        return true;
+    }
+
+    std::string int_part = value.substr(0, dot);
+    std::string frac_part = value.substr(dot + 1);
+
+    if (frac_part.find('.') != std::string::npos) {
+        err = "field '" + field_name + "' has malformed decimal: '" + value + "'";
+        return false;
+    }
+
+    if (frac_part.size() > decimals) {
+        err = "field '" + field_name + "' value '" + value + "' has " +
+              std::to_string(frac_part.size()) + " decimal places, spec allows " +
+              std::to_string(decimals);
+        return false;
+    }
+
+    frac_part.append(decimals - frac_part.size(), '0'); // right-pad to decimals
+    scaled_out = int_part + frac_part;
+    size_t nz = scaled_out.find_first_not_of('0');
+    if (nz == std::string::npos) scaled_out = "0";
+    else scaled_out = scaled_out.substr(nz);
+
+    return true;
+}
+
 static bool is_token_placeholder(const std::string& s) {
     if (s.size() != 4) return false;
     if (s[0] != 'T' || s[1] != 'K') return false;
@@ -57,11 +99,24 @@ static void strip_eol(std::string& s) {
 }
 
 static bool encode_field(const FieldSpec& field,
-                         const std::string& value,
+                         const std::string& value_in,
                          uint8_t* dst,
                          std::string& err) {
 
     uint8_t* p = dst + field.offset;
+
+    // Convert manually input decimal value(' into its scaled
+    // integer form.
+    // Value without . consider as pre-scaled and pass through unchanged
+    std::string scaled;
+    if (field.decimals > 0) {
+        if (!scale_decimal(value_in, field.decimals, field.name, scaled, err)) {
+            return false;
+        }
+    } else {
+        scaled = value_in;
+    }
+    const std::string& value = scaled;
 
     switch (field.type) {
 

@@ -58,6 +58,7 @@ static MsgSpec parse_msg_spec(char msg_type, const json& obj) {
         field_spec.name = fld.value("name", "");
         field_spec.type = parse_field_type(fld.value("type", "string"));
         field_spec.size = (uint32_t)fld.value("size", 0);
+        field_spec.decimals = (uint32_t)fld.value("decimals", 0);
         field_spec.offset = offset;
         offset += field_spec.size;
         msg.fields.push_back(field_spec);

@@ -24,6 +24,7 @@ struct FieldSpec {
     FieldType type;
     uint32_t size;
     uint32_t offset;
+    uint32_t decimals;
 };
 
 struct MsgSpec {

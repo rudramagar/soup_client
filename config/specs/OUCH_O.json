@@ -20,7 +20,7 @@
         { "name": "Quantity", "type": "uint32", "size": 4 },
         { "name": "OrderbookId", "type": "uint32", "size": 4 },
         { "name": "Group", "type": "string", "size": 4 },
-        { "name": "Price", "type": "uint32", "size": 4 },
+        { "name": "Price", "type": "uint32", "size": 4, "decimals": 3 },
         { "name": "TimeInForce", "type": "uint32", "size": 4 },
         { "name": "FirmId", "type": "uint32", "size": 4 },
         { "name": "Display", "type": "char", "size": 1 },
@@ -43,7 +43,7 @@
         { "name": "Quantity", "type": "uint32", "size": 4 },
         { "name": "OrderbookId", "type": "uint32", "size": 4 },
         { "name": "Group", "type": "string", "size": 4 },
-        { "name": "Price", "type": "uint32", "size": 4 },
+        { "name": "Price", "type": "uint32", "size": 4, "decimals": 3 },
         { "name": "TimeInForce", "type": "uint32", "size": 4 },
         { "name": "Display", "type": "char", "size": 1 },
         { "name": "OrderNumber", "type": "uint64", "size": 8 },
@@ -73,7 +73,7 @@
         { "name": "DecrementQuantity", "type": "uint32", "size": 4 },
         { "name": "OrderCanceledReason", "type": "char", "size": 1 },
         { "name": "QuantityPreventedFromTrading", "type": "uint32", "size": 4 },
-        { "name": "ExecutionPrice", "type": "uint32", "size": 4 },
+        { "name": "ExecutionPrice", "type": "uint32", "size": 4, "decimals": 3 },
         { "name": "LiquidityIndicator", "type": "char", "size": 1 }
       ]
     },
@@ -85,7 +85,7 @@
         { "name": "Timestamp", "type": "uint64", "size": 8 },
         { "name": "OrderToken", "type": "uint32", "size": 4 },
         { "name": "ExecutedQuantity", "type": "uint32", "size": 4 },
-        { "name": "ExecutionPrice", "type": "uint32", "size": 4 },
+        { "name": "ExecutionPrice", "type": "uint32", "size": 4, "decimals": 3 },
         { "name": "LiquidityIndicator", "type": "char", "size": 1 },
         { "name": "MatchNumber", "type": "uint64", "size": 8 }
       ]
@@ -113,7 +113,7 @@
         { "name": "Quantity", "type": "uint32", "size": 4 },
         { "name": "OrderbookId", "type": "uint32", "size": 4 },
         { "name": "Group", "type": "string", "size": 4 },
-        { "name": "Price", "type": "uint32", "size": 4 },
+        { "name": "Price", "type": "uint32", "size": 4, "decimals": 3 },
         { "name": "TimeInForce", "type": "uint32", "size": 4 },
         { "name": "FirmId", "type": "uint32", "size": 4 },
         { "name": "Display", "type": "char", "size": 1 },
@@ -131,7 +131,7 @@
         { "name": "ExistingOrderToken", "type": "uint32", "size": 4 },
         { "name": "ReplacementOrderToken", "type": "uint32", "size": 4 },
         { "name": "Quantity", "type": "uint32", "size": 4 },
-        { "name": "Price", "type": "uint32", "size": 4 },
+        { "name": "Price", "type": "uint32", "size": 4, "decimals": 3 },
         { "name": "TimeInForce", "type": "uint32", "size": 4 },
         { "name": "Display", "type": "char", "size": 1 },
         { "name": "MinimumQuantity", "type": "uint32", "size": 4 }
