@@ -6,6 +6,8 @@
 #include <cerrno>
 #include <ctime>
 #include <poll.h>
+#include <vector>
+#include <sys/socket.h>
 
 uint16_t read_u16_be(const uint8_t* src) {
     return (uint16_t)((uint16_t)src[0] << 8 | (uint16_t)src[1]);
@@ -48,7 +50,6 @@ void write_u64_be(uint8_t* dst, uint64_t value) {
     dst[7] = (uint8_t)(value & 0xFF);
 }
 
-// Space paded on the left for numeric field
 static void write_padded_number(char* dst, int width, uint64_t value) {
     std::memset(dst, ' ', (size_t)width);
     char tmp[32];
@@ -57,8 +58,6 @@ static void write_padded_number(char* dst, int width, uint64_t value) {
     std::memcpy(dst + (width - len), tmp, (size_t)len);
 }
 
-// Read a fixed-width numeric field,
-// ignoring leading spaces.
 static uint64_t read_padded_number(const char* src, int width) {
     int start = 0;
     while (start < width && src[start] == ' ') start++;
@@ -70,8 +69,6 @@ static uint64_t read_padded_number(const char* src, int width) {
     return result;
 }
 
-// Copy a string into a fixed-width
-// left-justified, space-paded field.
 static void copy_padded(char* dst, int width, const std::string& src) {
     std::memset(dst, ' ', (size_t)width);
     size_t len = src.size();
@@ -79,7 +76,6 @@ static void copy_padded(char* dst, int width, const std::string& src) {
     if (len > 0) std::memcpy(dst, src.data(), len);
 }
 
-// Login Request Packet
 static bool send_login(TcpSocket& sock,
                        const std::string& username,
                        const std::string& password,
@@ -100,7 +96,6 @@ static bool send_login(TcpSocket& sock,
     return sock.send_bytes(packet, (int)sizeof(packet));
 }
 
-// HB
 bool send_heartbeat(TcpSocket& sock) {
     uint8_t packet[3];
     write_u16_be(packet, 1);
@@ -108,7 +103,6 @@ bool send_heartbeat(TcpSocket& sock) {
     return sock.send_bytes(packet, 3);
 }
 
-// Logout
 bool send_logout(TcpSocket& sock) {
     uint8_t packet[3];
     write_u16_be(packet, 1);
@@ -116,7 +110,6 @@ bool send_logout(TcpSocket& sock) {
     return sock.send_bytes(packet, 3);
 }
 
-// drain payload
 bool drain_payload(TcpSocket& sock,
                    uint8_t* scratch_buf,
                    int scratch_buf_capacity,
@@ -150,20 +143,17 @@ bool connect_and_login(TcpSocket& sock,
     std::printf("Connected to %s:%u\n",
                 session.server_ip.c_str(), (unsigned)session.server_port);
 
-    // Print Login Request before sending
     std::printf("%s (%u,'L','%s',%llu)\n",
                 client_to_server,
                 (unsigned)(1 + LOGIN_REQUEST_PAYLOAD_LEN),
                 session.username.c_str(),
                 (unsigned long long)requested_sequence);
 
-    // Send Login Request
     if (!send_login(sock, session.username, session.password, requested_sequence)) {
         sock.close();
         return false;
     }
 
-    // Read login response header
     uint8_t header[SOUP_HEADER_LEN];
     if (!sock.recv_exact(header, SOUP_HEADER_LEN)) {
         sock.close();
@@ -174,7 +164,6 @@ bool connect_and_login(TcpSocket& sock,
     char     packet_type    = (char)header[2];
     int      payload_length = (int)(packet_length - 1);
 
-    // Login Accepted
     if (packet_type == SOUP_LOGIN_ACCEPTED) {
         if (payload_length < LOGIN_ACCEPTED_PAYLOAD_LEN) {
             sock.close();
@@ -187,7 +176,6 @@ bool connect_and_login(TcpSocket& sock,
             return false;
         }
 
-        // Drain trailing bytes beyond the standard payload, if any
         int trailing_bytes = payload_length - LOGIN_ACCEPTED_PAYLOAD_LEN;
         if (trailing_bytes > 0) {
             uint8_t discard_buf[256];
@@ -197,7 +185,6 @@ bool connect_and_login(TcpSocket& sock,
         LoginAcceptedPayload* accepted = (LoginAcceptedPayload*)accepted_payload;
         session_id.assign(accepted->session, 10);
 
-        // Subtract 1: caller increments sequence_number before printing
         uint64_t server_next_sequence =
             read_padded_number(accepted->sequence_number, 20);
         sequence_number = server_next_sequence - 1;
@@ -210,14 +197,12 @@ bool connect_and_login(TcpSocket& sock,
         return true;
     }
 
-    // Login Rejected
     if (packet_type == SOUP_LOGIN_REJECTED) {
         uint8_t reject_reason = 0;
         if (payload_length >= 1) {
             sock.recv_exact(&reject_reason, 1);
         }
 
-        // Drain trailing bytes beyond the reason byte, if any
         int trailing_bytes = payload_length - 1;
         if (trailing_bytes > 0) {
             uint8_t discard_buf[256];
@@ -241,9 +226,6 @@ bool connect_and_login(TcpSocket& sock,
     return false;
 }
 
-// =============================================================================
-// run_session: shared receive loop
-// =============================================================================
 SessionExit run_session(TcpSocket& sock,
                         const SessionLoopOptions& opts,
                         OnSequencedFn on_sequenced,
@@ -253,16 +235,18 @@ SessionExit run_session(TcpSocket& sock,
     char open_b  = opts.ouch_arrows ? '(' : '{';
     char close_b = opts.ouch_arrows ? ')' : '}';
 
-    // Heartbeat interval in ms (used as poll timeout). Default 1s if unset.
     int heartbeat_ms = opts.heartbeat_interval_sec * 1000;
     if (heartbeat_ms <= 0) heartbeat_ms = 1000;
 
-    // If on_idle is supplied, wake more often than the heartbeat so callbacks
-    // can react quickly (e.g. OUCH idle-exit at 1s).
     int poll_timeout_ms = on_idle ? 200 : heartbeat_ms;
 
     time_t last_send_time = std::time(0);
     time_t last_recv_time = std::time(0);
+
+    static const int STREAM_CAP = 4 * 1024 * 1024;
+    std::vector<uint8_t> stream(STREAM_CAP);
+    int head = 0;
+    int tail = 0;
 
     uint8_t recv_buf[RECV_BUF_CAPACITY];
 
@@ -279,12 +263,10 @@ SessionExit run_session(TcpSocket& sock,
             return SESSION_SOCKET_ERROR;
         }
 
-        // Caller-driven idle check (OUCH idle-exit, send pacing, etc.)
         if (on_idle && !on_idle(now)) {
             return SESSION_OK;
         }
 
-        // No data this wake — maybe send heartbeat, maybe time out.
         if (poll_result == 0) {
             if ((now - last_send_time) >= opts.heartbeat_interval_sec) {
                 if (!send_heartbeat(sock)) return SESSION_SOCKET_ERROR;
@@ -297,93 +279,76 @@ SessionExit run_session(TcpSocket& sock,
             continue;
         }
 
-        // Read SoupBinTCP header
-        uint8_t header[SOUP_HEADER_LEN];
-        if (!sock.recv_exact(header, SOUP_HEADER_LEN)) {
-            return SESSION_SOCKET_ERROR;
+        if (head > 0) {
+            int remaining = tail - head;
+            if (remaining > 0) std::memmove(stream.data(), stream.data() + head, remaining);
+            head = 0;
+            tail = remaining;
+        }
+        if (tail < STREAM_CAP) {
+            int got = (int)::recv(sock.get_fd(), stream.data() + tail,
+                                  (size_t)(STREAM_CAP - tail), 0);
+            if (got <= 0) return SESSION_SOCKET_ERROR;
+            tail += got;
+            last_recv_time = now;
         }
 
-        last_recv_time = now;
+        bool caller_stop = false;
+        SessionExit terminal = SESSION_OK;
+        bool have_terminal = false;
 
-        uint16_t packet_length = read_u16_be(header);
-        char     packet_type   = (char)header[2];
-        int      payload_length = (packet_length > 1) ? (int)(packet_length - 1) : 0;
+        while (tail - head >= SOUP_HEADER_LEN) {
+            const uint8_t* hdr = stream.data() + head;
+            uint16_t packet_length = read_u16_be(hdr);
+            int      total_needed  = 2 + (int)packet_length;
 
-        // Sequenced Data — dispatch to caller
-        if (packet_type == SOUP_SEQUENCED_DATA) {
-            if (payload_length == 0) {
-                if (!on_sequenced(0, 0, packet_length)) return SESSION_OK;
-                continue;
-            }
-            if (payload_length > RECV_BUF_CAPACITY) {
-                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                    return SESSION_SOCKET_ERROR;
+            if (packet_length == 0) { head += 2; continue; }
+
+            if (tail - head < total_needed) break;
+
+            char packet_type    = (char)hdr[2];
+            int  payload_length = (packet_length > 1) ? (int)(packet_length - 1) : 0;
+            const uint8_t* payload = hdr + SOUP_HEADER_LEN;
+            head += total_needed;
+
+            if (packet_type == SOUP_SEQUENCED_DATA) {
+                if (!on_sequenced(payload_length ? payload : 0,
+                                  (uint16_t)payload_length, packet_length)) {
+                    caller_stop = true; break;
                 }
                 continue;
             }
-            if (!sock.recv_exact(recv_buf, payload_length)) {
-                return SESSION_SOCKET_ERROR;
-            }
-            if (!on_sequenced(recv_buf, (uint16_t)payload_length, packet_length)) {
-                return SESSION_OK;
-            }
-            continue;
-        }
 
-        // Server Heartbeat — drain, optionally print
-        if (packet_type == SOUP_SERVER_HEARTBEAT) {
-            if (payload_length > 0) {
-                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                    return SESSION_SOCKET_ERROR;
-                }
-            }
-            if (opts.verbose) {
-                std::printf("%s %c%u,'H'%c\n",
-                            arrow_recv, open_b, (unsigned)packet_length, close_b);
-            }
-            // If we've been silent too long, send our own heartbeat
-            if ((now - last_send_time) >= opts.heartbeat_interval_sec) {
-                if (!send_heartbeat(sock)) return SESSION_SOCKET_ERROR;
-                last_send_time = now;
-            }
-            continue;
-        }
-
-        // End of Session
-        if (packet_type == SOUP_END_OF_SESSION) {
-            if (payload_length > 0) {
-                drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length);
-            }
-            return SESSION_END_OF_SESSION;
-        }
-
-        // Debug — drain, optionally print
-        if (packet_type == SOUP_DEBUG) {
-            if (payload_length > 0 && payload_length <= RECV_BUF_CAPACITY) {
-                if (!sock.recv_exact(recv_buf, payload_length)) {
-                    return SESSION_SOCKET_ERROR;
-                }
+            if (packet_type == SOUP_SERVER_HEARTBEAT) {
                 if (opts.verbose) {
-                    std::printf("%s %c%u,'+','%.*s'%c\n",
-                                arrow_recv,
-                                open_b,
-                                (unsigned)packet_length,
-                                payload_length, (const char*)recv_buf,
-                                close_b);
+                    std::printf("%s %c%u,'H'%c\n",
+                                arrow_recv, open_b, (unsigned)packet_length, close_b);
                 }
-            } else if (payload_length > 0) {
-                if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                    return SESSION_SOCKET_ERROR;
+                if ((now - last_send_time) >= opts.heartbeat_interval_sec) {
+                    if (!send_heartbeat(sock)) return SESSION_SOCKET_ERROR;
+                    last_send_time = now;
                 }
+                continue;
             }
-            continue;
+
+            if (packet_type == SOUP_END_OF_SESSION) {
+                terminal = SESSION_END_OF_SESSION; have_terminal = true; break;
+            }
+
+            if (packet_type == SOUP_DEBUG) {
+                if (opts.verbose && payload_length > 0) {
+                    std::printf("%s %c%u,'+','%.*s'%c\n",
+                                arrow_recv, open_b, (unsigned)packet_length,
+                                payload_length, (const char*)payload, close_b);
+                }
+                continue;
+            }
         }
 
-        // Unknown packet type — drain and skip
-        if (payload_length > 0) {
-            if (!drain_payload(sock, recv_buf, RECV_BUF_CAPACITY, payload_length)) {
-                return SESSION_SOCKET_ERROR;
-            }
-        }
+        if (caller_stop)   return SESSION_OK;
+        if (have_terminal) return terminal;
+
+        std::fflush(stdout);
+        (void)recv_buf;
     }
 }

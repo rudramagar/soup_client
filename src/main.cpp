@@ -25,8 +25,8 @@ static void usage(const char* prog) {
 }
 
 int main(int argc, char** argv) {
-    // Line-buffered stdout/stderr
-    std::setvbuf(stdout, 0, _IOLBF, 0);
+    static char stdout_buf[1 << 20];
+    std::setvbuf(stdout, stdout_buf, _IOFBF, sizeof(stdout_buf));
     std::setvbuf(stderr, 0, _IOLBF, 0);
 
     AppArgs args;
