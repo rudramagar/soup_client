@@ -73,14 +73,17 @@ static bool unpack_message(const uint8_t* msg, uint16_t msg_len,
         }
 
         const uint8_t* field_data = msg + field.offset;
-        std::printf(",'");
+
+        bool alpha = (field.type == FIELD_STRING || field.type == FIELD_CHAR);
+
+        std::printf(",%s", alpha ? "'" : "");
 
         if (verbose) {
             std::printf("%s=", field.name.c_str());
         }
 
         print_field_value(field.type, field_data, field.size);
-        std::printf("'");
+        if (alpha) std::printf("'");
     }
 
     std::printf("%c\n", close_bracket);
